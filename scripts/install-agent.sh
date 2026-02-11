@@ -8,7 +8,7 @@ set -e
 # --- Must run as root ---
 if [ "$(id -u)" -ne 0 ]; then
   echo "ERROR: This script must be run as root (use sudo)"
-  echo "  sudo bash $0 $*"
+  echo "  curl -sL <URL> | sudo bash -s -- $*"
   exit 1
 fi
 

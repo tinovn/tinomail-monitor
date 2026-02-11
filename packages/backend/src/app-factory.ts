@@ -46,6 +46,7 @@ import systemSettingsRoutes from "./routes/admin/system-settings-routes.js";
 import auditLogQueryRoutes from "./routes/admin/audit-log-query-routes.js";
 import agentVersionCheckRoutes from "./routes/agents/agent-version-check-routes.js";
 import agentUpdateRequestRoutes from "./routes/admin/agent-update-request-routes.js";
+import nodeDeleteAndBlockRoutes from "./routes/admin/node-delete-and-block-routes.js";
 
 // Augment Fastify with config
 declare module "fastify" {
@@ -143,6 +144,7 @@ export async function buildApp(config: ServerConfig) {
   await app.register(auditLogQueryRoutes, { prefix: "/api/v1/admin" });
   await app.register(agentVersionCheckRoutes, { prefix: "/api/v1/agents" });
   await app.register(agentUpdateRequestRoutes, { prefix: "/api/v1/admin" });
+  await app.register(nodeDeleteAndBlockRoutes, { prefix: "/api/v1/admin" });
 
   return app;
 }

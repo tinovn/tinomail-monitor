@@ -4,6 +4,9 @@ import { StatusIndicatorDot } from "@/components/shared/status-indicator-dot";
 import { formatDistanceToNow } from "date-fns";
 import { apiClient } from "@/lib/api-http-client";
 import { useAuthStore } from "@/stores/auth-session-store";
+import { NodeActionConfirmDialog } from "@/components/servers/node-action-confirm-dialog";
+import { useNavigate } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface ServerDetailHeaderInfoProps {
   node: Node;
@@ -12,7 +15,11 @@ interface ServerDetailHeaderInfoProps {
 export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [updateStatus, setUpdateStatus] = useState<"idle" | "requesting" | "sent">("idle");
+  const [confirmAction, setConfirmAction] = useState<"delete" | "block" | "unblock" | null>(null);
+  const isBlocked = node.status === "blocked";
 
   const getStatusType = (status: string): "ok" | "warning" | "critical" | "muted" => {
     if (status === "active") return "ok";
@@ -78,18 +85,69 @@ export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
             </div>
           )}
           {isAdmin && (
-            <button
-              onClick={handleRequestUpdate}
-              disabled={updateStatus !== "idle"}
-              className="mt-3 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {updateStatus === "requesting" ? "Requesting..." :
-               updateStatus === "sent" ? "Update Requested" :
-               "Update Agent"}
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={handleRequestUpdate}
+                disabled={updateStatus !== "idle"}
+                className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              >
+                {updateStatus === "requesting" ? "Requesting..." :
+                 updateStatus === "sent" ? "Update Requested" :
+                 "Update Agent"}
+              </button>
+              <button
+                onClick={() => setConfirmAction(isBlocked ? "unblock" : "block")}
+                className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700"
+              >
+                {isBlocked ? "Unblock" : "Block"}
+              </button>
+              <button
+                onClick={() => setConfirmAction("delete")}
+                className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
           )}
         </div>
       </div>
+
+      {confirmAction === "delete" && (
+        <NodeActionConfirmDialog
+          open
+          title="Delete Node"
+          description={`Delete node "${node.id}"? The agent can re-register on next heartbeat.`}
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={async () => {
+            await apiClient.del(`/admin/nodes/${node.id}`);
+            setConfirmAction(null);
+            navigate({ to: "/servers" });
+          }}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
+      {(confirmAction === "block" || confirmAction === "unblock") && (
+        <NodeActionConfirmDialog
+          open
+          title={confirmAction === "block" ? "Block Node" : "Unblock Node"}
+          description={
+            confirmAction === "block"
+              ? `Block node "${node.id}"? The agent will be rejected on next registration.`
+              : `Unblock node "${node.id}"? The agent will be able to register again.`
+          }
+          confirmLabel={confirmAction === "block" ? "Block" : "Unblock"}
+          variant="warning"
+          onConfirm={async () => {
+            await apiClient.put(`/admin/nodes/${node.id}/block`, {
+              blocked: confirmAction === "block",
+            });
+            setConfirmAction(null);
+            queryClient.invalidateQueries({ queryKey: ["node", node.id] });
+          }}
+          onCancel={() => setConfirmAction(null)}
+        />
+      )}
     </div>
   );
 }

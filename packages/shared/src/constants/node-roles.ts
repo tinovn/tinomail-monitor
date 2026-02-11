@@ -12,6 +12,6 @@ export const NODE_ROLES = [
 export type NodeRole = (typeof NODE_ROLES)[number];
 
 /** Node operational status */
-export const NODE_STATUSES = ["active", "stopped", "maintenance"] as const;
+export const NODE_STATUSES = ["active", "stopped", "maintenance", "blocked"] as const;
 
 export type NodeStatus = (typeof NODE_STATUSES)[number];

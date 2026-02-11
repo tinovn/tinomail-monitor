@@ -14,6 +14,7 @@ import { UptimeDisplayLabel } from "@/components/shared/uptime-display-label";
 import { DataDenseTableWrapper } from "@/components/shared/data-dense-table-wrapper";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/classname-utils";
+import { useAuthStore } from "@/stores/auth-session-store";
 
 interface NodeWithMetrics {
   id: string;
@@ -39,6 +40,8 @@ interface ServerListDataTableProps {
   nodes: NodeWithMetrics[];
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((old: SortingState) => SortingState)) => void;
+  onDelete?: (nodeId: string) => void;
+  onToggleBlock?: (nodeId: string, blocked: boolean) => void;
 }
 
 function formatBytes(bytes: number | null): string {
@@ -51,8 +54,12 @@ export function ServerListDataTable({
   nodes,
   sorting,
   onSortingChange,
+  onDelete,
+  onToggleBlock,
 }: ServerListDataTableProps) {
   const navigate = useNavigate();
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
 
   const columns = useMemo(
     () => [
@@ -163,8 +170,43 @@ export function ServerListDataTable({
         },
         enableSorting: true,
       }),
+      ...(isAdmin
+        ? [
+            columnHelper.display({
+              id: "actions",
+              header: "",
+              cell: (info) => {
+                const row = info.row.original;
+                const isBlocked = row.status === "blocked";
+                return (
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => onToggleBlock?.(row.id, !isBlocked)}
+                      title={isBlocked ? "Unblock" : "Block"}
+                      className={cn(
+                        "rounded p-1 text-xs",
+                        isBlocked
+                          ? "text-green-400 hover:bg-green-900/30"
+                          : "text-amber-400 hover:bg-amber-900/30",
+                      )}
+                    >
+                      {isBlocked ? "Unblock" : "Block"}
+                    </button>
+                    <button
+                      onClick={() => onDelete?.(row.id)}
+                      title="Delete"
+                      className="rounded p-1 text-xs text-red-400 hover:bg-red-900/30"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                );
+              },
+            }),
+          ]
+        : []),
     ],
-    [],
+    [isAdmin, onDelete, onToggleBlock],
   );
 
   const table = useReactTable({

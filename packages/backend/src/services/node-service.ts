@@ -6,7 +6,7 @@ import type { Node, NodeRegistrationPayload } from "@tinomail/shared";
 export class NodeService {
   constructor(private app: FastifyInstance) {}
 
-  async registerNode(payload: NodeRegistrationPayload): Promise<Node> {
+  async registerNode(payload: NodeRegistrationPayload): Promise<Node | "blocked"> {
     const now = new Date();
 
     // Check if node already exists
@@ -19,6 +19,9 @@ export class NodeService {
     const agentVersion = (payload.metadata?.agentVersion as string) || null;
 
     if (existing.length > 0) {
+      // Reject registration if node is blocked
+      if (existing[0].status === "blocked") return "blocked";
+
       // Update existing node
       const [updated] = await this.app.db
         .update(nodes)
@@ -79,6 +82,23 @@ export class NodeService {
     const [updated] = await this.app.db
       .update(nodes)
       .set({ status: maintenance ? "maintenance" : "active" })
+      .where(eq(nodes.id, nodeId))
+      .returning();
+    return updated ? (updated as Node) : null;
+  }
+
+  async deleteNode(nodeId: string): Promise<boolean> {
+    const [deleted] = await this.app.db
+      .delete(nodes)
+      .where(eq(nodes.id, nodeId))
+      .returning({ id: nodes.id });
+    return !!deleted;
+  }
+
+  async setBlocked(nodeId: string, blocked: boolean): Promise<Node | null> {
+    const [updated] = await this.app.db
+      .update(nodes)
+      .set({ status: blocked ? "blocked" : "active" })
       .where(eq(nodes.id, nodeId))
       .returning();
     return updated ? (updated as Node) : null;

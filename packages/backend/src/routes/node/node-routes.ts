@@ -56,11 +56,18 @@ export default async function nodeRoutes(app: FastifyInstance) {
   // POST /api/v1/nodes - Register node (agent auth)
   app.post("/", { onRequest: [agentAuthHook] }, async (request: FastifyRequest, reply: FastifyReply) => {
     const body = registerNodeSchema.parse(request.body);
-    const node = await nodeService.registerNode(body);
+    const result = await nodeService.registerNode(body);
 
-    const response: ApiResponse<typeof node> = {
+    if (result === "blocked") {
+      return reply.status(403).send({
+        success: false,
+        error: { code: "BLOCKED", message: `Node ${body.nodeId} is blocked` },
+      });
+    }
+
+    const response: ApiResponse<typeof result> = {
       success: true,
-      data: node,
+      data: result,
     };
     reply.status(201).send(response);
   });
