@@ -16,7 +16,7 @@ interface DatabaseSizeComparisonBarChartProps {
 export function DatabaseSizeComparisonBarChart({
   nodes,
 }: DatabaseSizeComparisonBarChartProps) {
-  const primaryNode = nodes.find((n) => n.role === "PRIMARY");
+  const primaryNode = nodes.find((n) => n.role?.toUpperCase() === "PRIMARY");
 
   if (!primaryNode) {
     return (

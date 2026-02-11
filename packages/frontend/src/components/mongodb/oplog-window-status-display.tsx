@@ -13,7 +13,7 @@ interface OplogWindowStatusDisplayProps {
 export function OplogWindowStatusDisplay({
   nodes,
 }: OplogWindowStatusDisplayProps) {
-  const primaryNode = nodes.find((n) => n.role === "PRIMARY");
+  const primaryNode = nodes.find((n) => n.role?.toUpperCase() === "PRIMARY");
 
   if (!primaryNode) {
     return (
