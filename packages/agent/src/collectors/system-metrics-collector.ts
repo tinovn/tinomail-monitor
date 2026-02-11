@@ -24,12 +24,11 @@ export class SystemMetricsCollector {
         si.networkConnections(),
       ]);
 
-    // Calculate disk usage — pick root "/" or largest real filesystem
+    // Calculate disk usage — pick largest real filesystem (data partition)
     const realDisks = disk.filter(
       (d) => d.size > 0 && !d.fs.startsWith("tmpfs") && !d.fs.startsWith("devtmpfs") && !d.fs.startsWith("efivarfs"),
     );
     const mainDisk =
-      realDisks.find((d) => d.mount === "/") ||
       realDisks.sort((a, b) => b.size - a.size)[0] ||
       { use: 0, available: 0 };
     const diskPercent = mainDisk.use;
