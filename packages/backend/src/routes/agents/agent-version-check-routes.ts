@@ -14,6 +14,9 @@ const AGENT_SOURCE_FILES = [
   "collectors/system-metrics-collector.ts",
   "collectors/process-health-collector.ts",
   "collectors/mongodb-metrics-collector.ts",
+  "collectors/service-auto-discovery-collector.ts",
+  "collectors/zonemta-metrics-collector.ts",
+  "collectors/redis-metrics-collector.ts",
   "transport/http-metrics-transport.ts",
   "transport/offline-metrics-buffer.ts",
 ];
