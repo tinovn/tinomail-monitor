@@ -1,4 +1,3 @@
-import { gzipSync } from "node:zlib";
 import type { MetricsPayload } from "@tinomail/shared";
 
 export interface TransportConfig {
@@ -12,7 +11,7 @@ export class HttpMetricsTransport {
   constructor(private config: TransportConfig) {}
 
   async send(payload: MetricsPayload): Promise<void> {
-    const compressed = gzipSync(JSON.stringify(payload));
+    const body = JSON.stringify(payload);
 
     let lastError: Error | null = null;
 
@@ -24,10 +23,9 @@ export class HttpMetricsTransport {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Content-Encoding": "gzip",
               "x-api-key": this.config.apiKey,
             },
-            body: compressed,
+            body,
             signal: AbortSignal.timeout(this.config.timeoutMs),
           }
         );
