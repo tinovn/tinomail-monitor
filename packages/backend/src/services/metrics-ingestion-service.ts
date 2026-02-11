@@ -11,7 +11,7 @@ export class MetricsIngestionService {
   constructor(private app: FastifyInstance) {}
 
   async ingestSystemMetrics(metrics: SystemMetricsInput): Promise<void> {
-    const timestamp = metrics.timestamp ? new Date(metrics.timestamp) : new Date();
+    const timestamp = metrics.timestamp || new Date().toISOString();
 
     await this.app.sql`
       INSERT INTO metrics_system (
@@ -33,7 +33,7 @@ export class MetricsIngestionService {
   }
 
   async ingestMongodbMetrics(metrics: MongodbMetricsInput): Promise<void> {
-    const timestamp = metrics.timestamp ? new Date(metrics.timestamp) : new Date();
+    const timestamp = metrics.timestamp || new Date().toISOString();
 
     await this.app.sql`
       INSERT INTO metrics_mongodb (
@@ -57,7 +57,7 @@ export class MetricsIngestionService {
   }
 
   async ingestRedisMetrics(metrics: RedisMetricsInput): Promise<void> {
-    const timestamp = metrics.timestamp ? new Date(metrics.timestamp) : new Date();
+    const timestamp = metrics.timestamp || new Date().toISOString();
 
     await this.app.sql`
       INSERT INTO metrics_redis (
@@ -74,7 +74,7 @@ export class MetricsIngestionService {
   }
 
   async ingestZonemtaMetrics(metrics: ZonemtaMetricsInput): Promise<void> {
-    const timestamp = metrics.timestamp ? new Date(metrics.timestamp) : new Date();
+    const timestamp = metrics.timestamp || new Date().toISOString();
 
     await this.app.sql`
       INSERT INTO metrics_zonemta (
@@ -95,7 +95,7 @@ export class MetricsIngestionService {
   }
 
   async ingestRspamdMetrics(metrics: RspamdMetricsInput): Promise<void> {
-    const timestamp = metrics.timestamp ? new Date(metrics.timestamp) : new Date();
+    const timestamp = metrics.timestamp || new Date().toISOString();
 
     await this.app.sql`
       INSERT INTO metrics_rspamd (
