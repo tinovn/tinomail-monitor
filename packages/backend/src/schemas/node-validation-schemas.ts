@@ -4,7 +4,7 @@ export const registerNodeSchema = z.object({
   nodeId: z.string().min(1).max(100),
   hostname: z.string().max(255),
   ipAddress: z.string().ip(),
-  role: z.enum(["mongodb", "wildduck", "haraka", "zonemta", "rspamd"]),
+  role: z.string().min(1).max(50),
   metadata: z.record(z.unknown()).optional(),
 });
 
