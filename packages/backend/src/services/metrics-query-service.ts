@@ -31,6 +31,8 @@ export class MetricsQueryService {
     const from = new Date(query.from);
     const to = new Date(query.to);
     const resolution = query.interval || this.selectResolution(from, to);
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
 
     let tableName = "metrics_system";
     if (resolution === "5m") tableName = "metrics_system_5m";
@@ -45,7 +47,7 @@ export class MetricsQueryService {
         disk_percent, disk_free_bytes, load_1m, load_5m, load_15m,
         net_rx_bytes_sec, net_tx_bytes_sec
       FROM ${this.app.sql(tableName)}
-      WHERE time >= ${from} AND time <= ${to} ${nodeFilter}
+      WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC
       LIMIT 10000
     `;
@@ -56,6 +58,8 @@ export class MetricsQueryService {
   async queryMongodbMetrics(query: TimeRangeQuery): Promise<MetricsQueryResult[]> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
     const nodeFilter = query.nodeId ? this.app.sql`AND node_id = ${query.nodeId}` : this.app.sql``;
 
     const result = await this.app.sql`
@@ -63,7 +67,7 @@ export class MetricsQueryService {
         time, node_id, connections, op_insert, op_query, op_update,
         op_delete, replication_lag, replica_set_status
       FROM metrics_mongodb
-      WHERE time >= ${from} AND time <= ${to} ${nodeFilter}
+      WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC
       LIMIT 10000
     `;
@@ -74,6 +78,8 @@ export class MetricsQueryService {
   async queryRedisMetrics(query: TimeRangeQuery): Promise<MetricsQueryResult[]> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
     const nodeFilter = query.nodeId ? this.app.sql`AND node_id = ${query.nodeId}` : this.app.sql``;
 
     const result = await this.app.sql`
@@ -81,7 +87,7 @@ export class MetricsQueryService {
         time, node_id, used_memory, connected_clients, ops_per_sec,
         keyspace_hits, keyspace_misses
       FROM metrics_redis
-      WHERE time >= ${from} AND time <= ${to} ${nodeFilter}
+      WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC
       LIMIT 10000
     `;
@@ -92,6 +98,8 @@ export class MetricsQueryService {
   async queryZonemtaMetrics(query: TimeRangeQuery): Promise<MetricsQueryResult[]> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
     const nodeFilter = query.nodeId ? this.app.sql`AND node_id = ${query.nodeId}` : this.app.sql``;
 
     const result = await this.app.sql`
@@ -99,7 +107,7 @@ export class MetricsQueryService {
         time, node_id, queue_size, deferred, processing, sent_1h,
         bounced_1h, deferred_1h, avg_latency
       FROM metrics_zonemta
-      WHERE time >= ${from} AND time <= ${to} ${nodeFilter}
+      WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC
       LIMIT 10000
     `;
@@ -110,6 +118,8 @@ export class MetricsQueryService {
   async queryRspamdMetrics(query: TimeRangeQuery): Promise<MetricsQueryResult[]> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const fromIso = from.toISOString();
+    const toIso = to.toISOString();
     const nodeFilter = query.nodeId ? this.app.sql`AND node_id = ${query.nodeId}` : this.app.sql``;
 
     const result = await this.app.sql`
@@ -117,7 +127,7 @@ export class MetricsQueryService {
         time, node_id, scanned, spam, ham, greylist, rejected,
         soft_reject, avg_score
       FROM metrics_rspamd
-      WHERE time >= ${from} AND time <= ${to} ${nodeFilter}
+      WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC
       LIMIT 10000
     `;

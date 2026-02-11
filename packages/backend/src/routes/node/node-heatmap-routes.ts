@@ -34,6 +34,8 @@ export default async function nodeHeatmapRoutes(app: FastifyInstance) {
 
       const fromDate = from ? new Date(from) : new Date(Date.now() - 24 * 60 * 60 * 1000);
       const toDate = to ? new Date(to) : new Date();
+      const fromIso = fromDate.toISOString();
+      const toIso = toDate.toISOString();
 
       // Map metric to database column
       const metricColumnMap: Record<string, string> = {
@@ -54,17 +56,24 @@ export default async function nodeHeatmapRoutes(app: FastifyInstance) {
         });
       }
 
-      // Parse bucket interval (default 1h)
-      const bucketInterval = bucket || "1h";
+      // Validate and map bucket interval to literal SQL
+      const bucketMap: Record<string, string> = {
+        "15m": "15 minutes",
+        "1h": "1 hour",
+        "6h": "6 hours",
+        "1d": "1 day",
+        "1w": "1 week",
+      };
+      const intervalLiteral = bucketMap[bucket || "1h"] || "1 hour";
 
       const data = await app.sql<HeatmapDataPoint[]>`
         SELECT
           node_id as "nodeId",
-          time_bucket(${bucketInterval}::interval, time) as bucket,
+          time_bucket(${intervalLiteral}::interval, time) as bucket,
           AVG(${app.sql(column)})::numeric(10,2) as value
         FROM metrics_system
-        WHERE time >= ${fromDate}
-          AND time <= ${toDate}
+        WHERE time >= ${fromIso}::timestamptz
+          AND time <= ${toIso}::timestamptz
         GROUP BY node_id, bucket
         ORDER BY bucket ASC, node_id ASC
       `;

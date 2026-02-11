@@ -117,8 +117,8 @@ async function detectVolumeSpikeUsers(
         from_user,
         COUNT(*) / 7.0 / 24.0 as avg_hourly
       FROM email_events
-      WHERE time >= ${sevenDaysAgo.toISOString()}
-        AND time < ${oneHourAgo.toISOString()}
+      WHERE time >= ${sevenDaysAgo.toISOString()}::timestamptz
+        AND time < ${oneHourAgo.toISOString()}::timestamptz
       GROUP BY from_user
     ),
     user_1h AS (
@@ -128,8 +128,8 @@ async function detectVolumeSpikeUsers(
         COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced,
         COUNT(*) FILTER (WHERE event_type = 'complained') as complained
       FROM email_events
-      WHERE time >= ${oneHourAgo.toISOString()}
-        AND time < ${checkTime.toISOString()}
+      WHERE time >= ${oneHourAgo.toISOString()}::timestamptz
+        AND time < ${checkTime.toISOString()}::timestamptz
       GROUP BY from_user
     )
     SELECT
@@ -170,8 +170,8 @@ async function detectHighBounceUsers(
       COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced,
       COUNT(*) FILTER (WHERE event_type = 'complained') as complained
     FROM email_events
-    WHERE time >= ${thirtyMinAgo.toISOString()}
-      AND time < ${checkTime.toISOString()}
+    WHERE time >= ${thirtyMinAgo.toISOString()}::timestamptz
+      AND time < ${checkTime.toISOString()}::timestamptz
     GROUP BY from_user
     HAVING COUNT(*) >= 50
       AND (COUNT(*) FILTER (WHERE event_type = 'bounced')::float / COUNT(*)) > 0.1
@@ -209,8 +209,8 @@ async function detectSpamComplaintUsers(
       COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced,
       COUNT(*) FILTER (WHERE event_type = 'complained') as complained
     FROM email_events
-    WHERE time >= ${oneDayAgo.toISOString()}
-      AND time < ${checkTime.toISOString()}
+    WHERE time >= ${oneDayAgo.toISOString()}::timestamptz
+      AND time < ${checkTime.toISOString()}::timestamptz
     GROUP BY from_user
     HAVING COUNT(*) FILTER (WHERE event_type = 'complained') > 3
   `;

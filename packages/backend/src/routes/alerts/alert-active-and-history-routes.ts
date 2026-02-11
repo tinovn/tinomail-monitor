@@ -138,7 +138,7 @@ export default async function alertActiveAndHistoryRoutes(app: FastifyInstance) 
         severity,
         COUNT(*) as count
       FROM alert_events
-      WHERE fired_at >= ${thirtyDaysAgo.toISOString()}
+      WHERE fired_at >= ${thirtyDaysAgo.toISOString()}::timestamptz
       GROUP BY DATE(fired_at), severity
       ORDER BY date DESC
     `;

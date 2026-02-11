@@ -49,8 +49,8 @@ export class DestinationDeliveryAnalysisService {
         COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced,
         AVG(delivery_time_ms) as avg_delivery_ms
       FROM email_events
-      WHERE time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+      WHERE time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
         AND to_domain IS NOT NULL
       GROUP BY to_domain
       ORDER BY total_sent DESC
@@ -87,8 +87,8 @@ export class DestinationDeliveryAnalysisService {
         AVG(delivery_time_ms) as avg_delivery_ms
       FROM email_events
       WHERE to_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
     `;
     const totalSent = parseInt(statsRow.total_sent || "0", 10);
 
@@ -106,8 +106,8 @@ export class DestinationDeliveryAnalysisService {
         COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced
       FROM email_events
       WHERE to_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
         AND sending_ip IS NOT NULL
       GROUP BY sending_ip
       ORDER BY sent DESC
@@ -128,8 +128,8 @@ export class DestinationDeliveryAnalysisService {
         COUNT(*) as count
       FROM email_events
       WHERE to_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
         AND event_type = 'bounced'
       GROUP BY bounce_category
       ORDER BY count DESC
@@ -148,8 +148,8 @@ export class DestinationDeliveryAnalysisService {
         COUNT(*) as count
       FROM email_events
       WHERE to_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
         AND status_code IS NOT NULL
       GROUP BY status_code
       ORDER BY count DESC
@@ -186,8 +186,8 @@ export class DestinationDeliveryAnalysisService {
         COUNT(*) as total_sent,
         COUNT(*) FILTER (WHERE event_type = 'accepted' OR event_type = 'delivered') as delivered
       FROM email_events
-      WHERE time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+      WHERE time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
       GROUP BY hour, weekday
       ORDER BY weekday, hour
     `;

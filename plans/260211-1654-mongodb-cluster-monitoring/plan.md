@@ -29,10 +29,10 @@ Phase 2 fixes this critical mismatch before any new features.
 
 | # | Phase | Status | Effort | File |
 |---|-------|--------|--------|------|
-| 1 | Agent MongoDB Collector | pending | 2h | [phase-01](phase-01-agent-mongodb-collector.md) |
-| 2 | Backend Fixes & Enhancements | pending | 2h | [phase-02](phase-02-backend-fixes-enhancements.md) |
-| 3 | Frontend MongoDB Dashboard | pending | 3h | [phase-03](phase-03-frontend-mongodb-dashboard.md) |
-| 4 | Alert Rules | pending | 0.5h | [phase-04](phase-04-alert-rules.md) |
+| 1 | Agent MongoDB Metrics Collector | pending | 2h | [phase-01](phase-01-agent-mongodb-metrics-collector.md) |
+| 2 | Backend Schema Fix & Cluster Status API | pending | 2h | [phase-02](phase-02-backend-schema-fix-and-cluster-status-api.md) |
+| 3 | Frontend MongoDB Cluster Dashboard | pending | 3h | [phase-03](phase-03-frontend-mongodb-cluster-dashboard.md) |
+| 4 | MongoDB Critical Alert Rules | pending | 0.5h | [phase-04](phase-04-mongodb-critical-alert-rules.md) |
 
 ## Dependencies
 
@@ -44,6 +44,24 @@ Phase 2 fixes this critical mismatch before any new features.
 ## Implementation Order
 
 1. Phase 2 (backend fixes) -> 2. Phase 1 (agent) -> 3. Phase 3 (frontend) -> 4. Phase 4 (alerts)
+
+## Validation Summary
+
+**Validated:** 2026-02-11
+**Questions asked:** 7
+
+### Confirmed Decisions
+- **Nav placement**: Both sidebar entry + sub-route at `/servers/mongodb/`. Add top-level "MongoDB" with Database icon AND keep as sub-route.
+- **Rate calculation**: Frontend handles ops/sec delta calculation in chart component.
+- **Agent scope**: Full replica set support — single agent can monitor all members via auto-discovery using `rs.status()`. Single `MONGODB_URI` to one node, discovers others automatically.
+- **DB state**: Drizzle schema is deployed. Table has correct column names (`connections_current`, `ops_insert`, etc.). Code layers are wrong, not the DB.
+- **Continuous aggregates**: Implement now (all 3: 5m, 1h, daily).
+- **WiredTiger cache**: All 3 nodes side by side as small gauges.
+
+### Action Items (Plan Revisions Needed)
+- [ ] Phase 1: Update agent to support full replica set auto-discovery (connect to one node, `rs.status()` to find members, collect from each). Changes collector architecture significantly.
+- [ ] Phase 3: Update sidebar to add top-level "MongoDB" entry (both sidebar + sub-route confirmed).
+- [ ] Phase 3: WiredTiger gauge shows all 3 nodes side by side (not just PRIMARY).
 
 ## Research
 

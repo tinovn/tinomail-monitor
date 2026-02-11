@@ -70,7 +70,7 @@ export class MailUserAnalyticsService {
     const [countRow] = await this.app.sql`
       SELECT COUNT(DISTINCT from_user) as total
       FROM email_events
-      WHERE time >= ${yesterday.toISOString()}
+      WHERE time >= ${yesterday.toISOString()}::timestamptz
       ${searchCondition}
     `;
     const total = parseInt(countRow.total || "0", 10);
@@ -85,7 +85,7 @@ export class MailUserAnalyticsService {
         COUNT(*) FILTER (WHERE event_type = 'complained') as spam_reports,
         COUNT(*) as total
       FROM email_events
-      WHERE time >= ${yesterday.toISOString()}
+      WHERE time >= ${yesterday.toISOString()}::timestamptz
         AND from_user IS NOT NULL
       ${searchCondition}
       GROUP BY from_user
@@ -136,7 +136,7 @@ export class MailUserAnalyticsService {
         COUNT(*) as total
       FROM email_events
       WHERE from_user = ${address}
-        AND time >= ${yesterday.toISOString()}
+        AND time >= ${yesterday.toISOString()}::timestamptz
     `;
 
     if (!row || parseInt(row.total || "0", 10) === 0) {
@@ -155,7 +155,7 @@ export class MailUserAnalyticsService {
         COUNT(*) as count
       FROM email_events
       WHERE from_user = ${address}
-        AND time >= ${yesterday.toISOString()}
+        AND time >= ${yesterday.toISOString()}::timestamptz
       GROUP BY to_domain
       ORDER BY count DESC
       LIMIT 10
@@ -186,8 +186,8 @@ export class MailUserAnalyticsService {
         0 as received
       FROM email_events
       WHERE from_user = ${address}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
       GROUP BY bucket
       ORDER BY bucket
     `;

@@ -12,7 +12,7 @@ export default async function alertActionRoutes(app: FastifyInstance) {
     { onRequest: [authHook] },
     async (request, reply) => {
       const alertId = parseInt(request.params.id);
-      const userId = (request.user as { id: string })?.id || "system";
+      const userId = (request.user as { userId: string })?.userId || "system";
 
       const [alert] = await app.db
         .select()

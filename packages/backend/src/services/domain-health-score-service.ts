@@ -123,8 +123,8 @@ export class DomainHealthScoreService {
         AVG(delivery_time_ms) as avg_delivery_ms
       FROM email_events
       WHERE from_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
     `;
 
     return {
@@ -159,8 +159,8 @@ export class DomainHealthScoreService {
         SUM(CASE WHEN dmarc_result = 'pass' THEN 1 ELSE 0 END) as dmarc_pass
       FROM email_events
       WHERE from_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
       GROUP BY bucket
       ORDER BY bucket
     `;
@@ -194,8 +194,8 @@ export class DomainHealthScoreService {
         AVG(delivery_time_ms) as avg_delivery_ms
       FROM email_events
       WHERE from_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
       GROUP BY to_domain
       ORDER BY total_sent DESC
       LIMIT ${limit}
@@ -225,8 +225,8 @@ export class DomainHealthScoreService {
         COUNT(*) FILTER (WHERE event_type = 'complained') as complained
       FROM email_events
       WHERE from_domain = ${domain}
-        AND time >= ${from.toISOString()}
-        AND time < ${to.toISOString()}
+        AND time >= ${from.toISOString()}::timestamptz
+        AND time < ${to.toISOString()}::timestamptz
       GROUP BY from_user
       ORDER BY total_sent DESC
       LIMIT ${limit}

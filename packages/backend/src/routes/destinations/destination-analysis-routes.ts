@@ -85,8 +85,8 @@ export default async function destinationAnalysisRoutes(app: FastifyInstance) {
     async (request, reply) => {
       const { domain } = destinationParamsSchema.parse(request.params);
       const query = destinationQuerySchema.parse(request.query);
-      const from = new Date(query.from);
-      const to = new Date(query.to);
+      const fromIso = new Date(query.from).toISOString();
+      const toIso = new Date(query.to).toISOString();
 
       const data = await app.sql`
         SELECT
@@ -99,8 +99,8 @@ export default async function destinationAnalysisRoutes(app: FastifyInstance) {
           COUNT(*)::int AS total_sent
         FROM email_events
         WHERE to_domain = ${domain}
-          AND time >= ${from}
-          AND time <= ${to}
+          AND time >= ${fromIso}::timestamptz
+          AND time <= ${toIso}::timestamptz
         GROUP BY hour, weekday
         ORDER BY weekday, hour
       `;

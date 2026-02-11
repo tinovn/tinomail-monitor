@@ -116,6 +116,9 @@ export default async function domainQualityRoutes(app: FastifyInstance) {
       const { domain } = domainParamsSchema.parse(request.params);
       const query = domainStatsQuerySchema.parse(request.query);
 
+      const fromIso = new Date(query.from).toISOString();
+      const toIso = new Date(query.to).toISOString();
+
       const data = await app.sql`
         SELECT
           EXTRACT(HOUR FROM time)::int AS hour,
@@ -123,8 +126,8 @@ export default async function domainQualityRoutes(app: FastifyInstance) {
           COUNT(*)::int AS value
         FROM email_events
         WHERE from_domain = ${domain}
-          AND time >= ${new Date(query.from)}
-          AND time <= ${new Date(query.to)}
+          AND time >= ${fromIso}::timestamptz
+          AND time <= ${toIso}::timestamptz
         GROUP BY hour, weekday
         ORDER BY weekday, hour
       `;
