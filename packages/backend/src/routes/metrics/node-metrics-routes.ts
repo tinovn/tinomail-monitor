@@ -21,7 +21,7 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
       const { nodeId } = nodeParamsSchema.parse(request.params);
       const { from, to } = nodeTimeRangeSchema.parse(request.query);
 
-      const data = await app.sql`
+      const rows = await app.sql`
         SELECT
           time,
           cpu_percent AS value
@@ -31,6 +31,11 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
           AND time <= ${to}::timestamptz
         ORDER BY time ASC
       `;
+
+      const data = rows.map((r: Record<string, unknown>) => ({
+        time: new Date(r.time as string | Date).toISOString(),
+        value: Number(r.value) || 0,
+      }));
 
       const response: ApiResponse<typeof data> = { success: true, data };
       reply.send(response);
@@ -57,7 +62,7 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
       `;
 
       const data = rows.map((r: Record<string, unknown>) => ({
-        time: r.time,
+        time: new Date(r.time as string | Date).toISOString(),
         usedPercent: Number(r.ram_percent) || 0,
         freePercent: Math.round((100 - (Number(r.ram_percent) || 0)) * 10) / 10,
       }));
@@ -122,7 +127,7 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
       `;
 
       const data = rows.map((r: Record<string, unknown>) => ({
-        time: r.time,
+        time: new Date(r.time as string | Date).toISOString(),
         rxBytesPerSec: Number(r.net_rx_bytes_sec) || 0,
         txBytesPerSec: Number(r.net_tx_bytes_sec) || 0,
       }));
