@@ -48,19 +48,7 @@ export class MonitoringAgent {
       this.mongodbCollector = new MongodbMetricsCollector(config.AGENT_MONGODB_URI);
     }
 
-    if (config.AGENT_ZONEMTA_MONGODB_URI) {
-      this.eventTransport = new EventHttpTransport({
-        serverUrl: config.AGENT_SERVER_URL,
-        apiKey: config.AGENT_API_KEY,
-        timeoutMs: 10000,
-        maxRetries: 3,
-      });
-      this.zonemtaEventCollector = new ZonemtaEmailEventCollector(
-        config.AGENT_ZONEMTA_MONGODB_URI,
-        config.AGENT_NODE_ID,
-        this.eventTransport
-      );
-    }
+    // ZoneMTA event collector initialized in initDynamicCollectors() after discovery
 
     const transportConfig: TransportConfig = {
       serverUrl: config.AGENT_SERVER_URL,
@@ -244,6 +232,23 @@ export class MonitoringAgent {
         this.config.AGENT_ZONEMTA_API_URL
       );
       console.info("[Agent] ZoneMTA collector enabled");
+    }
+
+    // ZoneMTA event collector: only when zonemta discovered + MongoDB URI available
+    const zonemtaMongoUri = this.config.AGENT_ZONEMTA_MONGODB_URI || this.config.AGENT_MONGODB_URI;
+    if (services.includes("zonemta") && !this.zonemtaEventCollector && zonemtaMongoUri) {
+      this.eventTransport = new EventHttpTransport({
+        serverUrl: this.config.AGENT_SERVER_URL,
+        apiKey: this.config.AGENT_API_KEY,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      });
+      this.zonemtaEventCollector = new ZonemtaEmailEventCollector(
+        zonemtaMongoUri,
+        this.config.AGENT_NODE_ID,
+        this.eventTransport
+      );
+      console.info("[Agent] ZoneMTA email event collector enabled");
     }
 
     if (services.includes("redis") && !this.redisCollector) {
