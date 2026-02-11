@@ -16,27 +16,32 @@ fi
 MONITOR_URL="${MONITOR_URL:-https://mail-monitor.tino.vn}"
 API_KEY="${API_KEY:-}"
 NODE_ID="${NODE_ID:-}"
-NODE_ROLE="${NODE_ROLE:-zonemta-outbound}"
+NODE_ROLE="${NODE_ROLE:-auto}"
 MONGODB_URI="${MONGODB_URI:-}"
+ZONEMTA_API_URL="${ZONEMTA_API_URL:-}"
+REDIS_URL="${REDIS_URL:-}"
 INSTALL_DIR="/opt/tinomail-agent"
 
 # --- Parse arguments ---
 usage() {
-  echo "Usage: $0 --api-key <KEY> --node-id <ID> [--role <ROLE>] [--mongodb-uri <URI>]"
+  echo "Usage: $0 --api-key <KEY> --node-id <ID> [OPTIONS]"
   echo ""
   echo "Required:"
-  echo "  --api-key     Agent API key from monitor server"
-  echo "  --node-id     Unique node identifier (e.g., mta-01, wildduck-01, mongo-01)"
+  echo "  --api-key         Agent API key from monitor server"
+  echo "  --node-id         Unique node identifier (e.g., mta-01, wildduck-01, mongo-01)"
   echo ""
   echo "Optional:"
-  echo "  --role        Node role (default: zonemta-outbound)"
-  echo "                Options: zonemta-outbound, wildduck, haraka, mongodb, redis"
-  echo "  --mongodb-uri MongoDB connection URI (for MongoDB nodes only)"
-  echo "  --server-url  Monitor server URL (default: https://mail-monitor.tino.vn)"
+  echo "  --role            Node role (default: auto — auto-detects running services)"
+  echo "                    Options: auto, zonemta, wildduck, haraka, mongodb, redis"
+  echo "  --mongodb-uri     MongoDB connection URI (for MongoDB nodes)"
+  echo "  --zonemta-api-url ZoneMTA API URL (default: http://localhost:12080)"
+  echo "  --redis-url       Redis URL (default: redis://localhost:6379)"
+  echo "  --server-url      Monitor server URL (default: https://mail-monitor.tino.vn)"
   echo ""
   echo "Example:"
-  echo "  $0 --api-key abc123 --node-id mta-01 --role zonemta-outbound"
-  echo "  $0 --api-key abc123 --node-id mongo-01 --role mongodb --mongodb-uri 'mongodb://localhost:27017'"
+  echo "  $0 --api-key abc123 --node-id mta-01"
+  echo "  $0 --api-key abc123 --node-id mta-01 --role zonemta"
+  echo "  $0 --api-key abc123 --node-id mongo-01 --mongodb-uri 'mongodb://localhost:27017'"
   exit 1
 }
 
@@ -46,6 +51,8 @@ while [[ $# -gt 0 ]]; do
     --node-id) NODE_ID="$2"; shift 2 ;;
     --role) NODE_ROLE="$2"; shift 2 ;;
     --mongodb-uri) MONGODB_URI="$2"; shift 2 ;;
+    --zonemta-api-url) ZONEMTA_API_URL="$2"; shift 2 ;;
+    --redis-url) REDIS_URL="$2"; shift 2 ;;
     --server-url) MONITOR_URL="$2"; shift 2 ;;
     -h|--help) usage ;;
     *) echo "Unknown option: $1"; usage ;;
@@ -111,7 +118,7 @@ for FILE in index.ts agent-config.ts monitoring-agent.ts self-updater.ts; do
   curl -sL "$REPO_RAW/$FILE" -o "src/$FILE"
 done
 
-for FILE in system-metrics-collector.ts process-health-collector.ts mongodb-metrics-collector.ts; do
+for FILE in system-metrics-collector.ts process-health-collector.ts mongodb-metrics-collector.ts service-auto-discovery-collector.ts zonemta-metrics-collector.ts redis-metrics-collector.ts; do
   curl -sL "$REPO_RAW/collectors/$FILE" -o "src/collectors/$FILE" 2>/dev/null || true
 done
 
@@ -174,6 +181,52 @@ export interface MongodbMetrics {
   wt_cache_used_bytes: number;
   wt_cache_max_bytes: number;
 }
+
+export interface ZonemtaMetrics {
+  time: Date;
+  nodeId: string;
+  mtaRole: string | null;
+  queueSize: number;
+  activeDeliveries: number;
+  sentTotal: number;
+  deliveredTotal: number;
+  bouncedTotal: number;
+  deferredTotal: number;
+  rejectedTotal: number;
+  connectionsActive: number;
+  throughputPerSec: number;
+}
+
+export interface RedisMetrics {
+  time: Date;
+  nodeId: string;
+  memoryUsedBytes: number;
+  memoryMaxBytes: number;
+  connectedClients: number;
+  opsPerSec: number;
+  hitRate: number;
+  evictedKeys: number;
+  totalKeys: number;
+}
+
+export interface RspamdMetrics {
+  time: Date;
+  nodeId: string;
+  scanned: number;
+  ham: number;
+  spam: number;
+  greylist: number;
+  rejected: number;
+  learnedHam: number;
+  learnedSpam: number;
+}
+
+export type MetricsPayload =
+  | { type: "system"; data: SystemMetrics }
+  | { type: "mongodb"; data: MongodbMetrics }
+  | { type: "redis"; data: RedisMetrics }
+  | { type: "zonemta"; data: ZonemtaMetrics }
+  | { type: "rspamd"; data: RspamdMetrics };
 SHAREDTYPES
 
 # Patch imports: replace @tinomail/shared with correct relative path per depth
@@ -211,10 +264,18 @@ AGENT_NODE_ROLE=$NODE_ROLE
 AGENT_HEARTBEAT_INTERVAL=15000
 ENVFILE
 
-# Add MongoDB config if specified
+# Add optional configs
 if [ -n "$MONGODB_URI" ]; then
   echo "AGENT_MONGODB_URI=$MONGODB_URI" >> .env
   echo "AGENT_MONGODB_INTERVAL=30000" >> .env
+fi
+
+if [ -n "$ZONEMTA_API_URL" ]; then
+  echo "AGENT_ZONEMTA_API_URL=$ZONEMTA_API_URL" >> .env
+fi
+
+if [ -n "$REDIS_URL" ]; then
+  echo "AGENT_REDIS_URL=$REDIS_URL" >> .env
 fi
 
 chmod 600 .env

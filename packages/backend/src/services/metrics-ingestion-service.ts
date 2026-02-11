@@ -61,12 +61,13 @@ export class MetricsIngestionService {
 
     await this.app.sql`
       INSERT INTO metrics_redis (
-        time, node_id, used_memory, connected_clients, ops_per_sec,
-        keyspace_hits, keyspace_misses, evicted_keys
+        time, node_id, memory_used_bytes, memory_max_bytes, connected_clients,
+        ops_per_sec, hit_rate, evicted_keys, total_keys
       ) VALUES (
-        ${timestamp}, ${metrics.nodeId}, ${metrics.usedMemory ?? null},
-        ${metrics.connectedClients ?? null}, ${metrics.opsPerSec ?? null}, ${metrics.keyspaceHits ?? null},
-        ${metrics.keyspaceMisses ?? null}, ${metrics.evictedKeys ?? null}
+        ${timestamp}, ${metrics.nodeId}, ${metrics.memoryUsedBytes ?? null},
+        ${metrics.memoryMaxBytes ?? null}, ${metrics.connectedClients ?? null},
+        ${metrics.opsPerSec ?? null}, ${metrics.hitRate ?? null},
+        ${metrics.evictedKeys ?? null}, ${metrics.totalKeys ?? null}
       )
     `;
 

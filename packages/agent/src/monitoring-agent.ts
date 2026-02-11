@@ -3,6 +3,9 @@ import { AGENT_VERSION, type AgentConfig } from "./agent-config.js";
 import { SystemMetricsCollector } from "./collectors/system-metrics-collector.js";
 import { ProcessHealthCollector } from "./collectors/process-health-collector.js";
 import { MongodbMetricsCollector } from "./collectors/mongodb-metrics-collector.js";
+import { ServiceAutoDiscoveryCollector } from "./collectors/service-auto-discovery-collector.js";
+import { ZonemtaMetricsCollector } from "./collectors/zonemta-metrics-collector.js";
+import { RedisMetricsCollector } from "./collectors/redis-metrics-collector.js";
 import {
   HttpMetricsTransport,
   type TransportConfig,
@@ -14,24 +17,31 @@ import * as si from "systeminformation";
 export class MonitoringAgent {
   private metricsCollector: SystemMetricsCollector;
   private processCollector: ProcessHealthCollector;
+  private discoveryCollector: ServiceAutoDiscoveryCollector;
   private mongodbCollector: MongodbMetricsCollector | null = null;
+  private zonemtaCollector: ZonemtaMetricsCollector | null = null;
+  private redisCollector: RedisMetricsCollector | null = null;
   private transport: HttpMetricsTransport;
   private buffer: OfflineMetricsBuffer;
   private updater: SelfUpdater;
+
   private intervalId: NodeJS.Timeout | null = null;
   private mongodbIntervalId: NodeJS.Timeout | null = null;
+  private zonemtaIntervalId: NodeJS.Timeout | null = null;
+  private redisIntervalId: NodeJS.Timeout | null = null;
+  private discoveryIntervalId: NodeJS.Timeout | null = null;
   private updateCheckIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private resolvedRole: string;
 
   constructor(private config: AgentConfig) {
     this.metricsCollector = new SystemMetricsCollector();
     this.processCollector = new ProcessHealthCollector();
+    this.discoveryCollector = new ServiceAutoDiscoveryCollector();
+    this.resolvedRole = config.AGENT_NODE_ROLE;
 
-    // Initialize MongoDB collector if URI is provided
     if (config.AGENT_MONGODB_URI) {
-      this.mongodbCollector = new MongodbMetricsCollector(
-        config.AGENT_MONGODB_URI
-      );
+      this.mongodbCollector = new MongodbMetricsCollector(config.AGENT_MONGODB_URI);
     }
 
     const transportConfig: TransportConfig = {
@@ -59,8 +69,14 @@ export class MonitoringAgent {
 
     console.info("[Agent] Starting monitoring agent...");
 
+    // Run auto-discovery before registration
+    await this.runDiscovery();
+
     // Register node with dashboard
     await this.registerNode();
+
+    // Initialize dynamic collectors based on discovered services
+    this.initDynamicCollectors();
 
     // Connect MongoDB collector if configured
     if (this.mongodbCollector) {
@@ -69,41 +85,70 @@ export class MonitoringAgent {
         console.info("[Agent] MongoDB collector connected");
       } catch (error) {
         console.error("[Agent] MongoDB collector connection failed:", error);
-        // Continue without MongoDB metrics
         this.mongodbCollector = null;
       }
     }
 
-    // Start collection loop
     this.isRunning = true;
+
+    // Start system metrics collection loop
     this.intervalId = setInterval(() => {
-      this.collectAndSend().catch((error) => {
-        console.error("[Agent] Collection error:", error);
+      this.collectAndSend().catch((err) => {
+        console.error("[Agent] Collection error:", err);
       });
     }, this.config.AGENT_HEARTBEAT_INTERVAL);
 
-    // Start MongoDB collection loop if available
+    // Start MongoDB collection loop
     if (this.mongodbCollector) {
       this.mongodbIntervalId = setInterval(() => {
-        this.collectAndSendMongodb().catch((error) => {
-          console.error("[Agent] MongoDB collection error:", error);
+        this.collectAndSendMongodb().catch((err) => {
+          console.error("[Agent] MongoDB collection error:", err);
         });
       }, this.config.AGENT_MONGODB_INTERVAL);
-
-      // Immediate first MongoDB collection
-      await this.collectAndSendMongodb().catch((error) => {
-        console.error("[Agent] Initial MongoDB collection failed:", error);
+      await this.collectAndSendMongodb().catch((err) => {
+        console.error("[Agent] Initial MongoDB collection failed:", err);
       });
     }
 
-    // Immediate first collection
+    // Start ZoneMTA collection loop
+    if (this.zonemtaCollector) {
+      this.zonemtaIntervalId = setInterval(() => {
+        this.collectAndSendZonemta().catch((err) => {
+          console.error("[Agent] ZoneMTA collection error:", err);
+        });
+      }, this.config.AGENT_HEARTBEAT_INTERVAL);
+      await this.collectAndSendZonemta().catch((err) => {
+        console.error("[Agent] Initial ZoneMTA collection failed:", err);
+      });
+    }
+
+    // Start Redis collection loop
+    if (this.redisCollector) {
+      this.redisIntervalId = setInterval(() => {
+        this.collectAndSendRedis().catch((err) => {
+          console.error("[Agent] Redis collection error:", err);
+        });
+      }, this.config.AGENT_MONGODB_INTERVAL); // 30s same as MongoDB
+      await this.collectAndSendRedis().catch((err) => {
+        console.error("[Agent] Initial Redis collection failed:", err);
+      });
+    }
+
+    // Immediate first system metrics collection
     await this.collectAndSend();
 
-    // Start auto-update check loop (every 5 minutes)
+    // Re-discovery loop (every 5 minutes)
+    this.discoveryIntervalId = setInterval(() => {
+      this.runDiscovery().catch((err) => {
+        console.error("[Agent] Re-discovery error:", err);
+      });
+    }, this.config.AGENT_DISCOVERY_INTERVAL);
+
+    // Auto-update check loop (every 5 minutes)
     const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
     this.updateCheckIntervalId = setInterval(() => {
-      this.checkAndUpdate().catch((error) => {
-        console.error("[Agent] Update check error:", error);
+      this.checkAndUpdate().catch((err) => {
+        console.error("[Agent] Update check error:", err);
       });
     }, UPDATE_CHECK_INTERVAL);
 
@@ -111,41 +156,75 @@ export class MonitoringAgent {
   }
 
   async stop(): Promise<void> {
-    if (!this.isRunning) {
-      return;
-    }
+    if (!this.isRunning) return;
 
     console.info("[Agent] Stopping monitoring agent...");
-
     this.isRunning = false;
 
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
-      this.intervalId = null;
+    const timers = [
+      this.intervalId,
+      this.mongodbIntervalId,
+      this.zonemtaIntervalId,
+      this.redisIntervalId,
+      this.discoveryIntervalId,
+      this.updateCheckIntervalId,
+    ];
+    for (const t of timers) {
+      if (t) clearInterval(t);
     }
+    this.intervalId = null;
+    this.mongodbIntervalId = null;
+    this.zonemtaIntervalId = null;
+    this.redisIntervalId = null;
+    this.discoveryIntervalId = null;
+    this.updateCheckIntervalId = null;
 
-    if (this.mongodbIntervalId) {
-      clearInterval(this.mongodbIntervalId);
-      this.mongodbIntervalId = null;
-    }
-
-    if (this.updateCheckIntervalId) {
-      clearInterval(this.updateCheckIntervalId);
-      this.updateCheckIntervalId = null;
-    }
-
-    // Disconnect MongoDB collector
     if (this.mongodbCollector) {
       await this.mongodbCollector.disconnect();
     }
 
-    // Flush remaining buffered metrics
     if (!this.buffer.isEmpty) {
       console.info(`[Agent] Flushing ${this.buffer.size} buffered metrics...`);
       await this.flushBuffer();
     }
 
     console.info("[Agent] Stopped");
+  }
+
+  /** Run service auto-discovery and resolve role */
+  private async runDiscovery(): Promise<void> {
+    const services = await this.discoveryCollector.discoverServices();
+    console.info(`[Discovery] Detected services: [${services.join(", ")}]`);
+
+    if (this.config.AGENT_NODE_ROLE === "auto") {
+      this.resolvedRole = this.discoveryCollector.determinePrimaryRole();
+      console.info(`[Discovery] Auto-resolved role: ${this.resolvedRole}`);
+    }
+  }
+
+  /** Initialize ZoneMTA/Redis collectors based on discovered services */
+  private initDynamicCollectors(): void {
+    const services = this.discoveryCollector.services;
+
+    if (services.includes("zonemta") && !this.zonemtaCollector) {
+      this.zonemtaCollector = new ZonemtaMetricsCollector(
+        this.config.AGENT_ZONEMTA_API_URL
+      );
+      console.info("[Agent] ZoneMTA collector enabled");
+    }
+
+    if (services.includes("redis") && !this.redisCollector) {
+      this.redisCollector = new RedisMetricsCollector(
+        this.config.AGENT_REDIS_URL
+      );
+      console.info("[Agent] Redis collector enabled");
+    }
+
+    // MongoDB via discovery (if not already configured via env)
+    if (services.includes("mongodb") && !this.mongodbCollector && !this.config.AGENT_MONGODB_URI) {
+      this.mongodbCollector = new MongodbMetricsCollector("mongodb://localhost:27017");
+      console.info("[Agent] MongoDB collector enabled (auto-discovered)");
+    }
   }
 
   private async registerNode(): Promise<void> {
@@ -158,13 +237,14 @@ export class MonitoringAgent {
         nodeId: this.config.AGENT_NODE_ID,
         hostname: osInfo.hostname,
         ipAddress: primaryInterface?.ip4 || "unknown",
-        role: this.config.AGENT_NODE_ROLE,
+        role: this.resolvedRole,
         metadata: {
           platform: osInfo.platform,
           distro: osInfo.distro,
           release: osInfo.release,
           arch: osInfo.arch,
           agentVersion: AGENT_VERSION,
+          detectedServices: this.discoveryCollector.services,
         },
       };
 
@@ -196,13 +276,11 @@ export class MonitoringAgent {
 
   private async collectAndSend(): Promise<void> {
     try {
-      // Collect system metrics
       const metrics = await this.metricsCollector.collect(
         this.config.AGENT_NODE_ID,
-        this.config.AGENT_NODE_ROLE
+        this.resolvedRole
       );
 
-      // Collect process health (for logging only, not sent in this phase)
       const processes = await this.processCollector.collect();
       const runningProcesses = processes.filter((p) => p.running);
 
@@ -211,26 +289,20 @@ export class MonitoringAgent {
           `Load=${metrics.load1m.toFixed(2)} Processes=${runningProcesses.length}/${processes.length}`
       );
 
-      // Try to send buffered metrics first if any exist
       if (!this.buffer.isEmpty) {
         await this.flushBuffer();
       }
 
-      // Send current metrics wrapped in payload
       await this.transport.send({ type: "system", data: metrics });
     } catch (error) {
       console.error("[Agent] Failed to send metrics:", error);
-
-      // Buffer metrics for later if collection succeeded but transport failed
       try {
         const metrics = await this.metricsCollector.collect(
           this.config.AGENT_NODE_ID,
-          this.config.AGENT_NODE_ROLE
+          this.resolvedRole
         );
         this.buffer.push({ type: "system", data: metrics });
-        console.info(
-          `[Agent] Buffered metrics (${this.buffer.size}/${100})`
-        );
+        console.info(`[Agent] Buffered metrics (${this.buffer.size}/100)`);
       } catch (collectError) {
         console.error("[Agent] Failed to collect metrics:", collectError);
       }
@@ -238,23 +310,41 @@ export class MonitoringAgent {
   }
 
   private async collectAndSendMongodb(): Promise<void> {
-    if (!this.mongodbCollector) {
-      return;
-    }
-
+    if (!this.mongodbCollector) return;
     try {
       const metricsArray = await this.mongodbCollector.collectAll();
-
       for (const metrics of metricsArray) {
         await this.transport.send({ type: "mongodb", data: metrics });
       }
-
-      console.info(
-        `[Agent] MongoDB: ${metricsArray.length} members collected`
-      );
+      console.info(`[Agent] MongoDB: ${metricsArray.length} members collected`);
     } catch (error) {
       console.error("[Agent] MongoDB metrics collection failed:", error);
-      // Don't crash the agent, just log the error
+    }
+  }
+
+  private async collectAndSendZonemta(): Promise<void> {
+    if (!this.zonemtaCollector) return;
+    try {
+      const metrics = await this.zonemtaCollector.collect(this.config.AGENT_NODE_ID);
+      await this.transport.send({ type: "zonemta", data: metrics });
+      console.info(
+        `[Agent] ZoneMTA: queue=${metrics.queueSize} sent=${metrics.sentTotal} delivered=${metrics.deliveredTotal}`
+      );
+    } catch (error) {
+      console.error("[Agent] ZoneMTA metrics collection failed:", error);
+    }
+  }
+
+  private async collectAndSendRedis(): Promise<void> {
+    if (!this.redisCollector) return;
+    try {
+      const metrics = await this.redisCollector.collect(this.config.AGENT_NODE_ID);
+      await this.transport.send({ type: "redis", data: metrics });
+      console.info(
+        `[Agent] Redis: memory=${(metrics.memoryUsedBytes / 1024 / 1024).toFixed(1)}MB clients=${metrics.connectedClients} ops=${metrics.opsPerSec}/s`
+      );
+    } catch (error) {
+      console.error("[Agent] Redis metrics collection failed:", error);
     }
   }
 
@@ -268,16 +358,14 @@ export class MonitoringAgent {
 
   private async flushBuffer(): Promise<void> {
     const buffered = this.buffer.getAll();
-
     for (const payload of buffered) {
       try {
         await this.transport.send(payload);
       } catch (error) {
         console.error("[Agent] Failed to flush buffered metric:", error);
-        return; // Stop flushing if we hit an error
+        return;
       }
     }
-
     this.buffer.clear();
     console.info("[Agent] Buffer flushed successfully");
   }

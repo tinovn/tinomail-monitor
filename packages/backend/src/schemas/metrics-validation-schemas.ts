@@ -53,23 +53,24 @@ export const mongodbMetricsSchema = z.object({
   wtCacheMaxBytes: z.number().int().nonnegative().nullable().optional(),
 });
 
-// Redis metrics ingestion schema
+// Redis metrics ingestion schema — matches metrics_redis hypertable
 export const redisMetricsSchema = z.object({
   nodeId: z.string(),
   timestamp: z.string().datetime().optional(),
-  usedMemory: z.number().int().nonnegative().optional(),
+  memoryUsedBytes: z.number().int().nonnegative().optional(),
+  memoryMaxBytes: z.number().int().nonnegative().optional(),
   connectedClients: z.number().int().nonnegative().optional(),
   opsPerSec: z.number().nonnegative().optional(),
-  keyspaceHits: z.number().int().nonnegative().optional(),
-  keyspaceMisses: z.number().int().nonnegative().optional(),
+  hitRate: z.number().nonnegative().optional(),
   evictedKeys: z.number().int().nonnegative().optional(),
+  totalKeys: z.number().int().nonnegative().optional(),
 });
 
 // ZoneMTA metrics ingestion schema — matches metrics_zonemta hypertable
 export const zonemtaMetricsSchema = z.object({
   nodeId: z.string(),
   timestamp: z.string().datetime().optional(),
-  mtaRole: z.string().optional(),
+  mtaRole: z.string().nullable().optional(),
   queueSize: z.number().int().nonnegative().optional(),
   activeDeliveries: z.number().int().nonnegative().optional(),
   sentTotal: z.number().int().nonnegative().optional(),
