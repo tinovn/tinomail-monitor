@@ -81,21 +81,21 @@ export function NodeIpAddressTableTab({ ips }: NodeIpAddressTableTabProps) {
       columnHelper.accessor("sentLast1h", {
         header: "Sent 1h",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
         size: 80,
       }),
       columnHelper.accessor("sentLast24h", {
         header: "Sent 24h",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
         size: 90,
       }),
       columnHelper.accessor("bounceRate", {
         header: "Bounce %",
         cell: (info) => {
-          const rate = info.getValue();
+          const rate = info.getValue() ?? 0;
           return (
             <span
               className={cn(

@@ -41,7 +41,7 @@ export function ReportSummaryStatCards({ stats, isLoading }: ReportSummaryStatCa
       <div className="rounded-md border border-border bg-surface p-4">
         <p className="text-sm text-muted-foreground">Total Sent</p>
         <p className="mt-1 text-2xl font-bold text-foreground">
-          {stats.totalSent.toLocaleString()}
+          {(stats.totalSent ?? 0).toLocaleString()}
         </p>
       </div>
 
@@ -51,10 +51,10 @@ export function ReportSummaryStatCards({ stats, isLoading }: ReportSummaryStatCa
         <p
           className={cn(
             "mt-1 text-2xl font-bold",
-            stats.bounceRate > 5 ? "text-red-500" : "text-green-500",
+            (stats.bounceRate ?? 0) > 5 ? "text-red-500" : "text-green-500",
           )}
         >
-          {stats.bounceRate.toFixed(2)}%
+          {(stats.bounceRate ?? 0).toFixed(2)}%
         </p>
       </div>
 
@@ -64,10 +64,10 @@ export function ReportSummaryStatCards({ stats, isLoading }: ReportSummaryStatCa
         <p
           className={cn(
             "mt-1 text-2xl font-bold",
-            stats.deliveredPercent >= 95 ? "text-green-500" : "text-yellow-500",
+            (stats.deliveredPercent ?? 0) >= 95 ? "text-green-500" : "text-yellow-500",
           )}
         >
-          {stats.deliveredPercent.toFixed(1)}%
+          {(stats.deliveredPercent ?? 0).toFixed(1)}%
         </p>
       </div>
 

@@ -113,10 +113,9 @@ function DestinationsPage() {
             <div className="rounded-md border border-border bg-surface p-3">
               <div className="text-[11px] text-muted-foreground">Avg Delivery Rate</div>
               <div className="mt-1 text-lg font-mono-data font-bold text-status-ok">
-                {(
-                  destinations.reduce((sum, d) => sum + d.deliveredPercent, 0) /
-                  destinations.length
-                ).toFixed(1)}
+                {destinations.length > 0
+                  ? (destinations.reduce((sum, d) => sum + (d.deliveredPercent ?? 0), 0) / destinations.length).toFixed(1)
+                  : "0"}
                 %
               </div>
             </div>

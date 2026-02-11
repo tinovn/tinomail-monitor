@@ -48,13 +48,13 @@ export function MailUserListDataTable({
       columnHelper.accessor("sent24h", {
         header: "Sent (24h)",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("received24h", {
         header: "Received (24h)",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("bounceRate", {

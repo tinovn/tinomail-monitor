@@ -43,21 +43,21 @@ export function DestinationStatsDataTable({
       columnHelper.accessor("totalSent", {
         header: "Sent",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("delivered", {
         header: "Delivered",
         cell: (info) => (
           <span className="text-sm text-status-ok">
-            {info.getValue().toLocaleString()}
+            {(info.getValue() ?? 0).toLocaleString()}
           </span>
         ),
       }),
       columnHelper.accessor("deliveredPercent", {
         header: "Delivered %",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span
               className={cn(
@@ -77,7 +77,7 @@ export function DestinationStatsDataTable({
       columnHelper.accessor("bouncePercent", {
         header: "Bounce %",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span
               className={cn(
@@ -97,7 +97,7 @@ export function DestinationStatsDataTable({
       columnHelper.accessor("avgDeliveryMs", {
         header: "Avg Time",
         cell: (info) => {
-          const ms = info.getValue();
+          const ms = info.getValue() ?? 0;
           const formatted = ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`;
           return (
             <span

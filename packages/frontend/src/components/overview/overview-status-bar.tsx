@@ -89,7 +89,7 @@ export function OverviewStatusBar() {
           Sent 24h
         </div>
         <div className="text-lg font-bold font-mono-data text-foreground">
-          {data.email.sent24h.toLocaleString()}
+          {(data.email.sent24h ?? 0).toLocaleString()}
         </div>
       </div>
 
@@ -116,7 +116,7 @@ export function OverviewStatusBar() {
           Queue Size
         </div>
         <div className="text-lg font-bold font-mono-data text-foreground">
-          {data.email.queueSize.toLocaleString()}
+          {(data.email.queueSize ?? 0).toLocaleString()}
         </div>
       </div>
 

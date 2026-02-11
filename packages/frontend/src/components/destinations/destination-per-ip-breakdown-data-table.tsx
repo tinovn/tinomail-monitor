@@ -41,14 +41,14 @@ export function DestinationPerIpBreakdownDataTable({
       columnHelper.accessor("sent", {
         header: "Sent",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("delivered", {
         header: "Delivered",
         cell: (info) => (
           <span className="text-sm text-status-ok">
-            {info.getValue().toLocaleString()}
+            {(info.getValue() ?? 0).toLocaleString()}
           </span>
         ),
       }),
@@ -56,14 +56,14 @@ export function DestinationPerIpBreakdownDataTable({
         header: "Bounced",
         cell: (info) => (
           <span className="text-sm text-status-critical">
-            {info.getValue().toLocaleString()}
+            {(info.getValue() ?? 0).toLocaleString()}
           </span>
         ),
       }),
       columnHelper.accessor("deliveredPercent", {
         header: "Delivery Rate",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span
               className={cn(

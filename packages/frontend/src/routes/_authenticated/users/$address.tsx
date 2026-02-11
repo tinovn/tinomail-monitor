@@ -9,28 +9,18 @@ import { LoadingSkeletonPlaceholder } from "@/components/shared/loading-skeleton
 
 interface UserDetail {
   address: string;
-  domain: string;
   sent24h: number;
   received24h: number;
-  bouncePercent: number;
+  bounceRate: number;
   spamReports: number;
   riskLevel: "Low" | "Medium" | "High";
-  lastActive: string;
-  createdAt: string;
+  topDestinations: Array<{ domain: string; count: number }>;
 }
 
 interface ActivityDataPoint {
   timestamp: string;
   sent: number;
   received: number;
-}
-
-interface TopDestination {
-  domain: string;
-  sent: number;
-  delivered: number;
-  bounced: number;
-  deliveredPercent: number;
 }
 
 export const Route = createFileRoute("/_authenticated/users/$address")({
@@ -72,12 +62,7 @@ function UserDetailPage() {
 
   const userAbuseFlags = abuseFlags?.filter((flag) => flag.userAddress === address) || [];
 
-  // Mock top destinations data
-  const topDestinations: TopDestination[] = [
-    { domain: "gmail.com", sent: 450, delivered: 445, bounced: 5, deliveredPercent: 98.9 },
-    { domain: "yahoo.com", sent: 320, delivered: 312, bounced: 8, deliveredPercent: 97.5 },
-    { domain: "outlook.com", sent: 280, delivered: 275, bounced: 5, deliveredPercent: 98.2 },
-  ];
+  const topDestinations = userDetail?.topDestinations ?? [];
 
   return (
     <div className="space-y-6">
@@ -99,19 +84,19 @@ function UserDetailPage() {
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Sent (24h)</div>
               <div className="mt-2 text-2xl font-bold text-foreground">
-                {userDetail.sent24h.toLocaleString()}
+                {(userDetail.sent24h ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Received (24h)</div>
               <div className="mt-2 text-2xl font-bold text-foreground">
-                {userDetail.received24h.toLocaleString()}
+                {(userDetail.received24h ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Bounce Rate</div>
               <div className="mt-2 text-2xl font-bold text-status-warning">
-                {userDetail.bouncePercent.toFixed(1)}%
+                {(userDetail.bounceRate ?? 0).toFixed(1)}%
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
@@ -140,14 +125,8 @@ function UserDetailPage() {
                         {dest.domain}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {dest.sent.toLocaleString()} sent
+                        {(dest.count ?? 0).toLocaleString()} emails
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold text-status-ok">
-                        {dest.deliveredPercent.toFixed(1)}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">delivered</div>
                     </div>
                   </div>
                 ))}

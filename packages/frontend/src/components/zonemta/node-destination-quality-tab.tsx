@@ -30,31 +30,31 @@ export function NodeDestinationQualityTab({ destinations }: NodeDestinationQuali
       columnHelper.accessor("sent", {
         header: "Sent",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("delivered", {
         header: "Delivered",
         cell: (info) => (
-          <span className="text-sm text-status-ok">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm text-status-ok">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("bounced", {
         header: "Bounced",
         cell: (info) => (
-          <span className="text-sm text-status-critical">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm text-status-critical">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("deferred", {
         header: "Deferred",
         cell: (info) => (
-          <span className="text-sm text-status-warning">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm text-status-warning">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("deliveryRate", {
         header: "Delivery Rate",
         cell: (info) => {
-          const rate = info.getValue();
+          const rate = info.getValue() ?? 0;
           return (
             <div className="flex items-center gap-2">
               <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">

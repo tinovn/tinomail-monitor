@@ -30,8 +30,9 @@ function AuthenticationMonitoringPage() {
     refetchInterval: autoRefresh ? autoRefresh * 1000 : false,
   });
 
-  const successRate = summary
-    ? ((summary.successCount / (summary.successCount + summary.failCount)) * 100).toFixed(1)
+  const totalAuth = (summary?.successCount ?? 0) + (summary?.failCount ?? 0);
+  const successRate = totalAuth > 0
+    ? (((summary?.successCount ?? 0) / totalAuth) * 100).toFixed(1)
     : "0";
 
   return (
@@ -48,7 +49,7 @@ function AuthenticationMonitoringPage() {
           <div className="rounded-md border border-border bg-green-500/10 p-2">
             <div className="text-[11px] font-medium text-muted-foreground">Successful Logins</div>
             <div className="mt-1 text-lg font-mono-data font-bold text-green-500">
-              {summary?.successCount.toLocaleString() || 0}
+              {(summary?.successCount ?? 0).toLocaleString()}
             </div>
             <div className="text-[10px] text-muted-foreground">{successRate}% success rate</div>
           </div>
@@ -56,7 +57,7 @@ function AuthenticationMonitoringPage() {
           <div className="rounded-md border border-border bg-red-500/10 p-2">
             <div className="text-[11px] font-medium text-muted-foreground">Failed Attempts</div>
             <div className="mt-1 text-lg font-mono-data font-bold text-red-500">
-              {summary?.failCount.toLocaleString() || 0}
+              {(summary?.failCount ?? 0).toLocaleString()}
             </div>
             <div className="text-[10px] text-muted-foreground">Potential threats</div>
           </div>
@@ -64,7 +65,7 @@ function AuthenticationMonitoringPage() {
           <div className="rounded-md border border-border bg-blue-500/10 p-2">
             <div className="text-[11px] font-medium text-muted-foreground">Unique Source IPs</div>
             <div className="mt-1 text-lg font-mono-data font-bold text-blue-500">
-              {summary?.uniqueIps.toLocaleString() || 0}
+              {(summary?.uniqueIps ?? 0).toLocaleString()}
             </div>
             <div className="text-[10px] text-muted-foreground">Active connections</div>
           </div>

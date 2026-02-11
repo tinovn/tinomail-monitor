@@ -95,25 +95,25 @@ function DestinationDetailPage() {
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Total Sent</div>
               <div className="mt-2 text-2xl font-bold text-foreground">
-                {destinationData.detail.totalSent.toLocaleString()}
+                {(destinationData.detail.totalSent ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Delivered</div>
               <div className="mt-2 text-2xl font-bold text-status-ok">
-                {destinationData.detail.delivered.toLocaleString()}
+                {(destinationData.detail.delivered ?? 0).toLocaleString()}
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Delivery Rate</div>
               <div className="mt-2 text-2xl font-bold text-status-ok">
-                {destinationData.detail.deliveredPercent.toFixed(1)}%
+                {(destinationData.detail.deliveredPercent ?? 0).toFixed(1)}%
               </div>
             </div>
             <div className="rounded-lg border border-border bg-surface p-4">
               <div className="text-sm text-muted-foreground">Bounce Rate</div>
               <div className="mt-2 text-2xl font-bold text-status-warning">
-                {destinationData.detail.bouncePercent.toFixed(1)}%
+                {(destinationData.detail.bouncePercent ?? 0).toFixed(1)}%
               </div>
             </div>
           </div>

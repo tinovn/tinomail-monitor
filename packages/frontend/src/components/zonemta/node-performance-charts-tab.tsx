@@ -89,19 +89,19 @@ export function NodePerformanceChartsTab({ performance }: NodePerformanceChartsT
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <MetricStatCard
           label="CPU Usage"
-          value={`${performance.resources.cpuUsage.toFixed(1)}%`}
+          value={`${(performance.resources.cpuUsage ?? 0).toFixed(1)}%`}
         />
         <MetricStatCard
           label="Memory Usage"
-          value={`${performance.resources.memUsage.toFixed(1)}%`}
+          value={`${(performance.resources.memUsage ?? 0).toFixed(1)}%`}
         />
         <MetricStatCard
           label="Network Sent"
-          value={`${(performance.resources.networkSent / 1024 / 1024).toFixed(1)} MB`}
+          value={`${((performance.resources.networkSent ?? 0) / 1024 / 1024).toFixed(1)} MB`}
         />
         <MetricStatCard
           label="Network Recv"
-          value={`${(performance.resources.networkRecv / 1024 / 1024).toFixed(1)} MB`}
+          value={`${((performance.resources.networkRecv ?? 0) / 1024 / 1024).toFixed(1)} MB`}
         />
       </div>
 

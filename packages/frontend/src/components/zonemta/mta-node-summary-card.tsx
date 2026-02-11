@@ -68,7 +68,7 @@ export function MtaNodeSummaryCard({ node }: MtaNodeSummaryCardProps) {
           <div>
             <div className="text-xs text-muted-foreground">Sent/h</div>
             <div className="text-sm font-semibold text-foreground">
-              {node.sentLastHour.toLocaleString()}
+              {(node.sentLastHour ?? 0).toLocaleString()}
             </div>
           </div>
         </div>
@@ -84,7 +84,7 @@ export function MtaNodeSummaryCard({ node }: MtaNodeSummaryCardProps) {
                 node.bounceRate > 5 ? "text-status-warning" : "text-foreground"
               )}
             >
-              {node.bounceRate.toFixed(1)}%
+              {(node.bounceRate ?? 0).toFixed(1)}%
             </div>
           </div>
         </div>
@@ -95,7 +95,7 @@ export function MtaNodeSummaryCard({ node }: MtaNodeSummaryCardProps) {
           <div>
             <div className="text-xs text-muted-foreground">Queue</div>
             <div className="text-sm font-semibold text-foreground">
-              {node.queueSize.toLocaleString()}
+              {(node.queueSize ?? 0).toLocaleString()}
             </div>
           </div>
         </div>
