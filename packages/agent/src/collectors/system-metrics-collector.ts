@@ -24,15 +24,14 @@ export class SystemMetricsCollector {
         si.networkConnections(),
       ]);
 
-    // Calculate disk usage — pick largest real filesystem (data partition)
+    // Calculate disk usage — sum all real filesystems
     const realDisks = disk.filter(
       (d) => d.size > 0 && !d.fs.startsWith("tmpfs") && !d.fs.startsWith("devtmpfs") && !d.fs.startsWith("efivarfs"),
     );
-    const mainDisk =
-      realDisks.sort((a, b) => b.size - a.size)[0] ||
-      { use: 0, available: 0 };
-    const diskPercent = mainDisk.use;
-    const diskFreeBytes = mainDisk.available;
+    const totalSize = realDisks.reduce((sum, d) => sum + d.size, 0);
+    const totalUsed = realDisks.reduce((sum, d) => sum + d.used, 0);
+    const diskPercent = totalSize > 0 ? Math.round((totalUsed / totalSize) * 100 * 10) / 10 : 0;
+    const diskFreeBytes = totalSize - totalUsed;
 
     // Calculate disk I/O rates (bytes/sec)
     let diskReadBytesSec = 0;

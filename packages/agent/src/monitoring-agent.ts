@@ -1,5 +1,5 @@
 import type { NodeRegistrationPayload } from "@tinomail/shared";
-import type { AgentConfig } from "./agent-config.js";
+import { AGENT_VERSION, type AgentConfig } from "./agent-config.js";
 import { SystemMetricsCollector } from "./collectors/system-metrics-collector.js";
 import { ProcessHealthCollector } from "./collectors/process-health-collector.js";
 import { MongodbMetricsCollector } from "./collectors/mongodb-metrics-collector.js";
@@ -8,6 +8,7 @@ import {
   type TransportConfig,
 } from "./transport/http-metrics-transport.js";
 import { OfflineMetricsBuffer } from "./transport/offline-metrics-buffer.js";
+import { SelfUpdater } from "./self-updater.js";
 import * as si from "systeminformation";
 
 export class MonitoringAgent {
@@ -16,8 +17,10 @@ export class MonitoringAgent {
   private mongodbCollector: MongodbMetricsCollector | null = null;
   private transport: HttpMetricsTransport;
   private buffer: OfflineMetricsBuffer;
+  private updater: SelfUpdater;
   private intervalId: NodeJS.Timeout | null = null;
   private mongodbIntervalId: NodeJS.Timeout | null = null;
+  private updateCheckIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
 
   constructor(private config: AgentConfig) {
@@ -40,6 +43,12 @@ export class MonitoringAgent {
 
     this.transport = new HttpMetricsTransport(transportConfig);
     this.buffer = new OfflineMetricsBuffer();
+    this.updater = new SelfUpdater({
+      serverUrl: config.AGENT_SERVER_URL,
+      apiKey: config.AGENT_API_KEY,
+      nodeId: config.AGENT_NODE_ID,
+      installDir: process.cwd(),
+    });
   }
 
   async start(): Promise<void> {
@@ -90,7 +99,15 @@ export class MonitoringAgent {
     // Immediate first collection
     await this.collectAndSend();
 
-    console.info("[Agent] Started successfully");
+    // Start auto-update check loop (every 5 minutes)
+    const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
+    this.updateCheckIntervalId = setInterval(() => {
+      this.checkAndUpdate().catch((error) => {
+        console.error("[Agent] Update check error:", error);
+      });
+    }, UPDATE_CHECK_INTERVAL);
+
+    console.info(`[Agent] Started successfully (v${AGENT_VERSION})`);
   }
 
   async stop(): Promise<void> {
@@ -110,6 +127,11 @@ export class MonitoringAgent {
     if (this.mongodbIntervalId) {
       clearInterval(this.mongodbIntervalId);
       this.mongodbIntervalId = null;
+    }
+
+    if (this.updateCheckIntervalId) {
+      clearInterval(this.updateCheckIntervalId);
+      this.updateCheckIntervalId = null;
     }
 
     // Disconnect MongoDB collector
@@ -142,6 +164,7 @@ export class MonitoringAgent {
           distro: osInfo.distro,
           release: osInfo.release,
           arch: osInfo.arch,
+          agentVersion: AGENT_VERSION,
         },
       };
 
@@ -232,6 +255,14 @@ export class MonitoringAgent {
     } catch (error) {
       console.error("[Agent] MongoDB metrics collection failed:", error);
       // Don't crash the agent, just log the error
+    }
+  }
+
+  private async checkAndUpdate(): Promise<void> {
+    const update = await this.updater.checkForUpdate();
+    if (update) {
+      console.info(`[Agent] Update available: ${AGENT_VERSION} → ${update.version}`);
+      await this.updater.performUpdate(update);
     }
   }
 

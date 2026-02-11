@@ -107,7 +107,7 @@ REPO_RAW="https://raw.githubusercontent.com/tinovn/tinomail-monitor/main/package
 SHARED_RAW="https://raw.githubusercontent.com/tinovn/tinomail-monitor/main/packages/shared/src"
 
 # Agent source files
-for FILE in index.ts agent-config.ts monitoring-agent.ts; do
+for FILE in index.ts agent-config.ts monitoring-agent.ts self-updater.ts; do
   curl -sL "$REPO_RAW/$FILE" -o "src/$FILE"
 done
 

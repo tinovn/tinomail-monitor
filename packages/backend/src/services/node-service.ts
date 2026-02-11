@@ -16,6 +16,8 @@ export class NodeService {
       .where(eq(nodes.id, payload.nodeId))
       .limit(1);
 
+    const agentVersion = (payload.metadata?.agentVersion as string) || null;
+
     if (existing.length > 0) {
       // Update existing node
       const [updated] = await this.app.db
@@ -26,6 +28,7 @@ export class NodeService {
           role: payload.role,
           lastSeen: now,
           metadata: payload.metadata,
+          agentVersion,
         })
         .where(eq(nodes.id, payload.nodeId))
         .returning();
@@ -44,6 +47,7 @@ export class NodeService {
         registeredAt: now,
         lastSeen: now,
         metadata: payload.metadata,
+        agentVersion,
       })
       .returning();
 

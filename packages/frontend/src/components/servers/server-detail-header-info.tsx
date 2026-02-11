@@ -1,12 +1,19 @@
+import { useState } from "react";
 import type { Node } from "@tinomail/shared";
 import { StatusIndicatorDot } from "@/components/shared/status-indicator-dot";
 import { formatDistanceToNow } from "date-fns";
+import { apiClient } from "@/lib/api-http-client";
+import { useAuthStore } from "@/stores/auth-session-store";
 
 interface ServerDetailHeaderInfoProps {
   node: Node;
 }
 
 export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
+  const user = useAuthStore((s) => s.user);
+  const isAdmin = user?.role === "admin";
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "requesting" | "sent">("idle");
+
   const getStatusType = (status: string): "ok" | "warning" | "critical" | "muted" => {
     if (status === "active") return "ok";
     if (status === "warning") return "warning";
@@ -17,6 +24,16 @@ export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
   const uptime = node.lastSeen
     ? formatDistanceToNow(new Date(node.registeredAt), { addSuffix: false })
     : "Unknown";
+
+  const handleRequestUpdate = async () => {
+    setUpdateStatus("requesting");
+    try {
+      await apiClient.post(`/admin/nodes/${node.id}/request-update`);
+      setUpdateStatus("sent");
+    } catch {
+      setUpdateStatus("idle");
+    }
+  };
 
   return (
     <div className="rounded-lg border border-border bg-surface p-6">
@@ -44,6 +61,12 @@ export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
                 <span className="text-sm text-foreground">{node.hostname}</span>
               </div>
             )}
+            {node.agentVersion && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Agent Version:</span>
+                <span className="font-mono text-sm text-foreground">v{node.agentVersion}</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="text-right">
@@ -53,6 +76,17 @@ export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
             <div className="mt-1 text-xs text-muted-foreground">
               Last seen {formatDistanceToNow(new Date(node.lastSeen), { addSuffix: true })}
             </div>
+          )}
+          {isAdmin && (
+            <button
+              onClick={handleRequestUpdate}
+              disabled={updateStatus !== "idle"}
+              className="mt-3 rounded-md bg-blue-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            >
+              {updateStatus === "requesting" ? "Requesting..." :
+               updateStatus === "sent" ? "Update Requested" :
+               "Update Agent"}
+            </button>
           )}
         </div>
       </div>

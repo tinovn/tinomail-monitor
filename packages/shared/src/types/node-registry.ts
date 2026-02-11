@@ -8,6 +8,8 @@ export interface Node {
   registeredAt: Date;
   lastSeen: Date | null;
   metadata: Record<string, unknown> | null;
+  agentVersion: string | null;
+  updateRequested: boolean;
 }
 
 /** Payload sent by agent on registration/heartbeat */

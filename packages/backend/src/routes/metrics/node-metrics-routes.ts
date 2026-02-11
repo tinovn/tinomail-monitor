@@ -98,7 +98,7 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
         const totalBytes = freeBytes > 0 && usedPercent < 100
           ? Math.round(freeBytes / ((100 - usedPercent) / 100))
           : 0;
-        data = [{ partition: "/", usedPercent, total: totalBytes }];
+        data = [{ partition: "All Disks", usedPercent, total: totalBytes }];
       }
 
       const response: ApiResponse<typeof data> = { success: true, data };

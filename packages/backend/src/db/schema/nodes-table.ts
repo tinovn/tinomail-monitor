@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, boolean } from "drizzle-orm/pg-core";
 
 /** Node registry — agents self-register on startup */
 export const nodes = pgTable("nodes", {
@@ -10,4 +10,6 @@ export const nodes = pgTable("nodes", {
   registeredAt: timestamp("registered_at", { withTimezone: true, mode: "date" }).defaultNow(),
   lastSeen: timestamp("last_seen", { withTimezone: true, mode: "date" }),
   metadata: jsonb("metadata").$type<Record<string, unknown>>(),
+  agentVersion: text("agent_version"),
+  updateRequested: boolean("update_requested").default(false),
 });
