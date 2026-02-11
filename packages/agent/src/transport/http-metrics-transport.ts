@@ -1,5 +1,5 @@
 import { gzipSync } from "node:zlib";
-import type { SystemMetrics } from "@tinomail/shared";
+import type { MetricsPayload } from "@tinomail/shared";
 
 export interface TransportConfig {
   serverUrl: string;
@@ -11,8 +11,7 @@ export interface TransportConfig {
 export class HttpMetricsTransport {
   constructor(private config: TransportConfig) {}
 
-  async send(metrics: SystemMetrics): Promise<void> {
-    const payload = { type: "system", data: metrics };
+  async send(payload: MetricsPayload): Promise<void> {
     const compressed = gzipSync(JSON.stringify(payload));
 
     let lastError: Error | null = null;
@@ -20,7 +19,7 @@ export class HttpMetricsTransport {
     for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
       try {
         const response = await fetch(
-          `${this.config.serverUrl}/api/v1/metrics`,
+          `${this.config.serverUrl}/api/v1/metrics/${payload.type}`,
           {
             method: "POST",
             headers: {

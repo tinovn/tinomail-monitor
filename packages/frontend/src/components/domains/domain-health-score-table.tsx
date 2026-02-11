@@ -66,13 +66,13 @@ export function DomainHealthScoreTable({
       columnHelper.accessor("sent24h", {
         header: "Sent (24h)",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("deliveredPercent", {
         header: "Delivered %",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span className={cn(
               "text-sm font-medium",
@@ -87,7 +87,7 @@ export function DomainHealthScoreTable({
       columnHelper.accessor("bouncePercent", {
         header: "Bounce %",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span className={cn(
               "text-sm font-medium",

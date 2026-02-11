@@ -4,13 +4,13 @@ import { useTimeRangeStore } from "@/stores/global-time-range-store";
 import { LoadingSkeletonPlaceholder } from "@/components/shared/loading-skeleton-placeholder";
 
 interface RspamdSummary {
-  scanned: number;
-  ham: number;
-  spam: number;
-  greylist: number;
-  rejected: number;
-  learnedHam: number;
-  learnedSpam: number;
+  totalScanned: number;
+  totalHam: number;
+  totalSpam: number;
+  totalGreylist: number;
+  totalRejected: number;
+  totalLearnedHam: number;
+  totalLearnedSpam: number;
 }
 
 export function RspamdSummaryStatCards() {
@@ -38,37 +38,42 @@ export function RspamdSummaryStatCards() {
 
   if (!data) return null;
 
-  const scannedPerHour = Math.round(data.scanned / 24);
-  const hamPercent = data.scanned ? ((data.ham / data.scanned) * 100).toFixed(1) : "0";
-  const spamPercent = data.scanned ? ((data.spam / data.scanned) * 100).toFixed(1) : "0";
-  const rejectedPercent = data.scanned ? ((data.rejected / data.scanned) * 100).toFixed(1) : "0";
+  const scanned = data.totalScanned ?? 0;
+  const ham = data.totalHam ?? 0;
+  const spam = data.totalSpam ?? 0;
+  const rejected = data.totalRejected ?? 0;
+
+  const scannedPerHour = Math.round(scanned / 24);
+  const hamPercent = scanned ? ((ham / scanned) * 100).toFixed(1) : "0";
+  const spamPercent = scanned ? ((spam / scanned) * 100).toFixed(1) : "0";
+  const rejectedPercent = scanned ? ((rejected / scanned) * 100).toFixed(1) : "0";
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <StatCard
         label="Scanned/h"
         value={scannedPerHour.toLocaleString()}
-        subtitle={`${data.scanned.toLocaleString()} total`}
+        subtitle={`${scanned.toLocaleString()} total`}
         color="text-blue-500"
         bgColor="bg-blue-500/10"
       />
       <StatCard
         label="Ham (Clean)"
-        value={data.ham.toLocaleString()}
+        value={ham.toLocaleString()}
         subtitle={`${hamPercent}% of scanned`}
         color="text-green-500"
         bgColor="bg-green-500/10"
       />
       <StatCard
         label="Spam Detected"
-        value={data.spam.toLocaleString()}
+        value={spam.toLocaleString()}
         subtitle={`${spamPercent}% of scanned`}
         color="text-yellow-500"
         bgColor="bg-yellow-500/10"
       />
       <StatCard
         label="Rejected"
-        value={data.rejected.toLocaleString()}
+        value={rejected.toLocaleString()}
         subtitle={`${rejectedPercent}% of scanned`}
         color="text-red-500"
         bgColor="bg-red-500/10"

@@ -20,6 +20,7 @@ import ipRoutes from "./routes/ip/ip-routes.js";
 import ipWarmupRoutes from "./routes/ip/ip-warmup-routes.js";
 import ipPoolRoutes from "./routes/ip/ip-pool-routes.js";
 import zonemtaClusterRoutes from "./routes/zonemta/zonemta-cluster-routes.js";
+import mongodbClusterRoutes from "./routes/mongodb/mongodb-cluster-routes.js";
 import overviewRoutes from "./routes/overview/overview-routes.js";
 import eventIngestionRoutes from "./routes/events/event-ingestion-routes.js";
 import emailThroughputRoutes from "./routes/email/email-throughput-routes.js";
@@ -113,6 +114,7 @@ export async function buildApp(config: ServerConfig) {
   await app.register(ipWarmupRoutes, { prefix: "/api/v1/ips" });
   await app.register(ipPoolRoutes, { prefix: "/api/v1/ips" });
   await app.register(zonemtaClusterRoutes, { prefix: "/api/v1/zonemta" });
+  await app.register(mongodbClusterRoutes, { prefix: "/api/v1/mongodb" });
   await app.register(overviewRoutes, { prefix: "/api/v1/overview" });
   await app.register(eventIngestionRoutes, { prefix: "/api/v1/events" });
   await app.register(emailThroughputRoutes, { prefix: "/api/v1/email" });

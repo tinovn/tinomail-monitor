@@ -2,6 +2,7 @@ import type { NodeRegistrationPayload } from "@tinomail/shared";
 import type { AgentConfig } from "./agent-config.js";
 import { SystemMetricsCollector } from "./collectors/system-metrics-collector.js";
 import { ProcessHealthCollector } from "./collectors/process-health-collector.js";
+import { MongodbMetricsCollector } from "./collectors/mongodb-metrics-collector.js";
 import {
   HttpMetricsTransport,
   type TransportConfig,
@@ -12,14 +13,23 @@ import * as si from "systeminformation";
 export class MonitoringAgent {
   private metricsCollector: SystemMetricsCollector;
   private processCollector: ProcessHealthCollector;
+  private mongodbCollector: MongodbMetricsCollector | null = null;
   private transport: HttpMetricsTransport;
   private buffer: OfflineMetricsBuffer;
   private intervalId: NodeJS.Timeout | null = null;
+  private mongodbIntervalId: NodeJS.Timeout | null = null;
   private isRunning = false;
 
   constructor(private config: AgentConfig) {
     this.metricsCollector = new SystemMetricsCollector();
     this.processCollector = new ProcessHealthCollector();
+
+    // Initialize MongoDB collector if URI is provided
+    if (config.AGENT_MONGODB_URI) {
+      this.mongodbCollector = new MongodbMetricsCollector(
+        config.AGENT_MONGODB_URI
+      );
+    }
 
     const transportConfig: TransportConfig = {
       serverUrl: config.AGENT_SERVER_URL,
@@ -43,6 +53,18 @@ export class MonitoringAgent {
     // Register node with dashboard
     await this.registerNode();
 
+    // Connect MongoDB collector if configured
+    if (this.mongodbCollector) {
+      try {
+        await this.mongodbCollector.connect();
+        console.info("[Agent] MongoDB collector connected");
+      } catch (error) {
+        console.error("[Agent] MongoDB collector connection failed:", error);
+        // Continue without MongoDB metrics
+        this.mongodbCollector = null;
+      }
+    }
+
     // Start collection loop
     this.isRunning = true;
     this.intervalId = setInterval(() => {
@@ -50,6 +72,20 @@ export class MonitoringAgent {
         console.error("[Agent] Collection error:", error);
       });
     }, this.config.AGENT_HEARTBEAT_INTERVAL);
+
+    // Start MongoDB collection loop if available
+    if (this.mongodbCollector) {
+      this.mongodbIntervalId = setInterval(() => {
+        this.collectAndSendMongodb().catch((error) => {
+          console.error("[Agent] MongoDB collection error:", error);
+        });
+      }, this.config.AGENT_MONGODB_INTERVAL);
+
+      // Immediate first MongoDB collection
+      await this.collectAndSendMongodb().catch((error) => {
+        console.error("[Agent] Initial MongoDB collection failed:", error);
+      });
+    }
 
     // Immediate first collection
     await this.collectAndSend();
@@ -69,6 +105,16 @@ export class MonitoringAgent {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
+    }
+
+    if (this.mongodbIntervalId) {
+      clearInterval(this.mongodbIntervalId);
+      this.mongodbIntervalId = null;
+    }
+
+    // Disconnect MongoDB collector
+    if (this.mongodbCollector) {
+      await this.mongodbCollector.disconnect();
     }
 
     // Flush remaining buffered metrics
@@ -147,8 +193,8 @@ export class MonitoringAgent {
         await this.flushBuffer();
       }
 
-      // Send current metrics
-      await this.transport.send(metrics);
+      // Send current metrics wrapped in payload
+      await this.transport.send({ type: "system", data: metrics });
     } catch (error) {
       console.error("[Agent] Failed to send metrics:", error);
 
@@ -158,7 +204,7 @@ export class MonitoringAgent {
           this.config.AGENT_NODE_ID,
           this.config.AGENT_NODE_ROLE
         );
-        this.buffer.push(metrics);
+        this.buffer.push({ type: "system", data: metrics });
         console.info(
           `[Agent] Buffered metrics (${this.buffer.size}/${100})`
         );
@@ -168,12 +214,33 @@ export class MonitoringAgent {
     }
   }
 
+  private async collectAndSendMongodb(): Promise<void> {
+    if (!this.mongodbCollector) {
+      return;
+    }
+
+    try {
+      const metricsArray = await this.mongodbCollector.collectAll();
+
+      for (const metrics of metricsArray) {
+        await this.transport.send({ type: "mongodb", data: metrics });
+      }
+
+      console.info(
+        `[Agent] MongoDB: ${metricsArray.length} members collected`
+      );
+    } catch (error) {
+      console.error("[Agent] MongoDB metrics collection failed:", error);
+      // Don't crash the agent, just log the error
+    }
+  }
+
   private async flushBuffer(): Promise<void> {
     const buffered = this.buffer.getAll();
 
-    for (const metrics of buffered) {
+    for (const payload of buffered) {
       try {
-        await this.transport.send(metrics);
+        await this.transport.send(payload);
       } catch (error) {
         console.error("[Agent] Failed to flush buffered metric:", error);
         return; // Stop flushing if we hit an error

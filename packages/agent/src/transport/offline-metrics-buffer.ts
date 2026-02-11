@@ -1,12 +1,12 @@
-import type { SystemMetrics } from "@tinomail/shared";
+import type { MetricsPayload } from "@tinomail/shared";
 
 const MAX_BUFFER_SIZE = 100; // ~25 minutes at 15s intervals
 
 export class OfflineMetricsBuffer {
-  private buffer: SystemMetrics[] = [];
+  private buffer: MetricsPayload[] = [];
 
-  push(metrics: SystemMetrics): void {
-    this.buffer.push(metrics);
+  push(payload: MetricsPayload): void {
+    this.buffer.push(payload);
 
     // Circular buffer - remove oldest when full
     if (this.buffer.length > MAX_BUFFER_SIZE) {
@@ -14,7 +14,7 @@ export class OfflineMetricsBuffer {
     }
   }
 
-  getAll(): SystemMetrics[] {
+  getAll(): MetricsPayload[] {
     return [...this.buffer];
   }
 

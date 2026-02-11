@@ -80,9 +80,108 @@ FROM email_events
 GROUP BY bucket, from_domain, from_user, to_domain, mta_node, sending_ip, event_type
 WITH NO DATA;
 
+-- MongoDB stats rolled up every 5 minutes
+DROP VIEW IF EXISTS mongodb_stats_5m CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mongodb_stats_5m CASCADE;
+CREATE MATERIALIZED VIEW IF NOT EXISTS mongodb_stats_5m
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('5 minutes', time) AS bucket,
+  node_id,
+  last(role, time) AS role,
+  AVG(connections_current) AS connections_current,
+  AVG(connections_available) AS connections_available,
+  SUM(ops_insert) AS ops_insert,
+  SUM(ops_query) AS ops_query,
+  SUM(ops_update) AS ops_update,
+  SUM(ops_delete) AS ops_delete,
+  SUM(ops_command) AS ops_command,
+  AVG(repl_lag_seconds) AS repl_lag_seconds,
+  MAX(data_size_bytes) AS data_size_bytes,
+  MAX(index_size_bytes) AS index_size_bytes,
+  MAX(storage_size_bytes) AS storage_size_bytes,
+  AVG(oplog_window_hours) AS oplog_window_hours,
+  AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+FROM metrics_mongodb
+GROUP BY bucket, node_id
+WITH NO DATA;
+
+-- MongoDB stats rolled up every 1 hour
+DROP VIEW IF EXISTS mongodb_stats_1h CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mongodb_stats_1h CASCADE;
+CREATE MATERIALIZED VIEW IF NOT EXISTS mongodb_stats_1h
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 hour', time) AS bucket,
+  node_id,
+  last(role, time) AS role,
+  AVG(connections_current) AS connections_current,
+  AVG(connections_available) AS connections_available,
+  SUM(ops_insert) AS ops_insert,
+  SUM(ops_query) AS ops_query,
+  SUM(ops_update) AS ops_update,
+  SUM(ops_delete) AS ops_delete,
+  SUM(ops_command) AS ops_command,
+  AVG(repl_lag_seconds) AS repl_lag_seconds,
+  MAX(data_size_bytes) AS data_size_bytes,
+  MAX(index_size_bytes) AS index_size_bytes,
+  MAX(storage_size_bytes) AS storage_size_bytes,
+  AVG(oplog_window_hours) AS oplog_window_hours,
+  AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+FROM metrics_mongodb
+GROUP BY bucket, node_id
+WITH NO DATA;
+
+-- MongoDB stats rolled up daily
+DROP VIEW IF EXISTS mongodb_stats_daily CASCADE;
+DROP MATERIALIZED VIEW IF EXISTS mongodb_stats_daily CASCADE;
+CREATE MATERIALIZED VIEW IF NOT EXISTS mongodb_stats_daily
+WITH (timescaledb.continuous) AS
+SELECT
+  time_bucket('1 day', time) AS bucket,
+  node_id,
+  last(role, time) AS role,
+  AVG(connections_current) AS connections_current,
+  AVG(connections_available) AS connections_available,
+  SUM(ops_insert) AS ops_insert,
+  SUM(ops_query) AS ops_query,
+  SUM(ops_update) AS ops_update,
+  SUM(ops_delete) AS ops_delete,
+  SUM(ops_command) AS ops_command,
+  AVG(repl_lag_seconds) AS repl_lag_seconds,
+  MAX(data_size_bytes) AS data_size_bytes,
+  MAX(index_size_bytes) AS index_size_bytes,
+  MAX(storage_size_bytes) AS storage_size_bytes,
+  AVG(oplog_window_hours) AS oplog_window_hours,
+  AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+FROM metrics_mongodb
+GROUP BY bucket, node_id
+WITH NO DATA;
+
 -- ============================================================
 -- CONTINUOUS AGGREGATE REFRESH POLICIES
 -- ============================================================
+
+SELECT add_continuous_aggregate_policy('mongodb_stats_5m',
+  start_offset => INTERVAL '30 minutes',
+  end_offset => INTERVAL '1 minute',
+  schedule_interval => INTERVAL '5 minutes',
+  if_not_exists => TRUE);
+
+SELECT add_continuous_aggregate_policy('mongodb_stats_1h',
+  start_offset => INTERVAL '3 hours',
+  end_offset => INTERVAL '5 minutes',
+  schedule_interval => INTERVAL '1 hour',
+  if_not_exists => TRUE);
+
+SELECT add_continuous_aggregate_policy('mongodb_stats_daily',
+  start_offset => INTERVAL '3 days',
+  end_offset => INTERVAL '1 hour',
+  schedule_interval => INTERVAL '1 day',
+  if_not_exists => TRUE);
 
 SELECT add_continuous_aggregate_policy('email_stats_5m',
   start_offset => INTERVAL '30 minutes',

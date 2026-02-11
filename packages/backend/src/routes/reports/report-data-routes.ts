@@ -38,8 +38,22 @@ export default async function reportDataRoutes(app: FastifyInstance) {
       // Parse week string (e.g., "2024-W05")
       let weekStart: Date;
       if (week) {
-        const [year, weekNum] = week.split("-W");
-        weekStart = new Date(parseInt(year), 0, 1 + (parseInt(weekNum) - 1) * 7);
+        const parts = week.split("-W");
+        if (parts.length !== 2) {
+          return reply.status(400).send({
+            success: false,
+            error: { code: "INVALID_FORMAT", message: "Week must be in YYYY-Www format (e.g., 2024-W05)" },
+          });
+        }
+        const year = parseInt(parts[0], 10);
+        const weekNum = parseInt(parts[1], 10);
+        if (isNaN(year) || isNaN(weekNum) || weekNum < 1 || weekNum > 53) {
+          return reply.status(400).send({
+            success: false,
+            error: { code: "INVALID_FORMAT", message: "Invalid year or week number" },
+          });
+        }
+        weekStart = new Date(year, 0, 1 + (weekNum - 1) * 7);
       } else {
         weekStart = new Date();
         weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Start of current week
@@ -64,8 +78,22 @@ export default async function reportDataRoutes(app: FastifyInstance) {
 
       let monthStart: Date;
       if (month) {
-        const [year, monthNum] = month.split("-");
-        monthStart = new Date(parseInt(year), parseInt(monthNum) - 1, 1);
+        const parts = month.split("-");
+        if (parts.length !== 2) {
+          return reply.status(400).send({
+            success: false,
+            error: { code: "INVALID_FORMAT", message: "Month must be in YYYY-MM format (e.g., 2024-01)" },
+          });
+        }
+        const year = parseInt(parts[0], 10);
+        const monthNum = parseInt(parts[1], 10);
+        if (isNaN(year) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+          return reply.status(400).send({
+            success: false,
+            error: { code: "INVALID_FORMAT", message: "Invalid year or month number" },
+          });
+        }
+        monthStart = new Date(year, monthNum - 1, 1);
       } else {
         monthStart = new Date();
         monthStart.setDate(1);

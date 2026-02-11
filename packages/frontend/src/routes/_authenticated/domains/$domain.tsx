@@ -35,11 +35,12 @@ interface DomainStats {
 }
 
 interface TopSender {
-  fromUser: string;
-  sent: number;
+  sender: string;
+  totalSent: number;
   delivered: number;
   bounced: number;
-  deliveredPercent: number;
+  complained: number;
+  bounceRate: number;
 }
 
 interface HeatmapDataPoint {

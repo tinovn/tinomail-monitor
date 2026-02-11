@@ -37,14 +37,19 @@ export class MetricsIngestionService {
 
     await this.app.sql`
       INSERT INTO metrics_mongodb (
-        time, node_id, connections, op_insert, op_query, op_update, op_delete,
-        op_getmore, op_command, replication_lag, replica_set_status
+        time, node_id, role, connections_current, connections_available,
+        ops_insert, ops_query, ops_update, ops_delete, ops_command,
+        repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+        oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
       ) VALUES (
-        ${timestamp}, ${metrics.nodeId}, ${metrics.connections ?? null},
-        ${metrics.opCounters?.insert ?? null}, ${metrics.opCounters?.query ?? null},
-        ${metrics.opCounters?.update ?? null}, ${metrics.opCounters?.delete ?? null},
-        ${metrics.opCounters?.getmore ?? null}, ${metrics.opCounters?.command ?? null},
-        ${metrics.replicationLag ?? null}, ${metrics.replicaSetStatus ?? null}
+        ${timestamp}, ${metrics.nodeId}, ${metrics.role ?? null},
+        ${metrics.connectionsCurrent ?? null}, ${metrics.connectionsAvailable ?? null},
+        ${metrics.opsInsert ?? null}, ${metrics.opsQuery ?? null},
+        ${metrics.opsUpdate ?? null}, ${metrics.opsDelete ?? null}, ${metrics.opsCommand ?? null},
+        ${metrics.replLagSeconds ?? null}, ${metrics.dataSizeBytes ?? null},
+        ${metrics.indexSizeBytes ?? null}, ${metrics.storageSizeBytes ?? null},
+        ${metrics.oplogWindowHours ?? null}, ${metrics.wtCacheUsedBytes ?? null},
+        ${metrics.wtCacheMaxBytes ?? null}
       )
     `;
 
@@ -73,12 +78,16 @@ export class MetricsIngestionService {
 
     await this.app.sql`
       INSERT INTO metrics_zonemta (
-        time, node_id, queue_size, deferred, processing, sent_1h,
-        bounced_1h, deferred_1h, avg_latency
+        time, node_id, mta_role, queue_size, active_deliveries, sent_total,
+        delivered_total, bounced_total, deferred_total, rejected_total,
+        connections_active, throughput_per_sec
       ) VALUES (
-        ${timestamp}, ${metrics.nodeId}, ${metrics.queueSize ?? null}, ${metrics.deferred ?? null},
-        ${metrics.processing ?? null}, ${metrics.sent1h ?? null}, ${metrics.bounced1h ?? null},
-        ${metrics.deferred1h ?? null}, ${metrics.avgLatency ?? null}
+        ${timestamp}, ${metrics.nodeId}, ${metrics.mtaRole ?? null},
+        ${metrics.queueSize ?? null}, ${metrics.activeDeliveries ?? null},
+        ${metrics.sentTotal ?? null}, ${metrics.deliveredTotal ?? null},
+        ${metrics.bouncedTotal ?? null}, ${metrics.deferredTotal ?? null},
+        ${metrics.rejectedTotal ?? null}, ${metrics.connectionsActive ?? null},
+        ${metrics.throughputPerSec ?? null}
       )
     `;
 

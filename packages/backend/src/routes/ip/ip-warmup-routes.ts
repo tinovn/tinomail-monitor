@@ -62,10 +62,17 @@ export default async function ipWarmupRoutes(app: FastifyInstance) {
       const body = addIpRangeSchema.parse(request.body);
 
       // Parse CIDR (e.g., "192.168.1.0/24")
-      const [baseIp, prefixStr] = body.cidr.split("/");
+      const cidrParts = body.cidr.split("/");
+      if (cidrParts.length !== 2) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: "INVALID_CIDR", message: "CIDR must be in IP/prefix format (e.g., 192.168.1.0/24)" },
+        });
+      }
+      const [baseIp, prefixStr] = cidrParts;
       const prefix = parseInt(prefixStr, 10);
 
-      if (prefix > 32 || prefix < 8) {
+      if (isNaN(prefix) || prefix > 32 || prefix < 8) {
         return reply.status(400).send({
           success: false,
           error: {
@@ -77,6 +84,12 @@ export default async function ipWarmupRoutes(app: FastifyInstance) {
 
       // Calculate IP range
       const baseOctets = baseIp.split(".").map((o) => parseInt(o, 10));
+      if (baseOctets.length !== 4 || baseOctets.some(isNaN)) {
+        return reply.status(400).send({
+          success: false,
+          error: { code: "INVALID_CIDR", message: "Invalid IP address in CIDR notation" },
+        });
+      }
       const hostBits = 32 - prefix;
       const numIps = Math.pow(2, hostBits) - 2; // Exclude network and broadcast
 

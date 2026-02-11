@@ -6,6 +6,8 @@ const envSchema = z.object({
   AGENT_NODE_ID: z.string().default("node-01"),
   AGENT_NODE_ROLE: z.string().default("zonemta-outbound"),
   AGENT_HEARTBEAT_INTERVAL: z.coerce.number().default(15000),
+  AGENT_MONGODB_URI: z.string().optional(),
+  AGENT_MONGODB_INTERVAL: z.coerce.number().default(30000),
 });
 
 export type AgentConfig = z.infer<typeof envSchema>;

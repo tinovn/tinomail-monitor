@@ -14,13 +14,11 @@ import { MailUserRiskLevelBadge } from "./mail-user-risk-level-badge";
 
 export interface MailUserListItem {
   address: string;
-  domain: string;
   sent24h: number;
   received24h: number;
-  bouncePercent: number;
+  bounceRate: number;
   spamReports: number;
   riskLevel: "Low" | "Medium" | "High";
-  lastActive: string;
 }
 
 const columnHelper = createColumnHelper<MailUserListItem>();
@@ -47,12 +45,6 @@ export function MailUserListDataTable({
           <span className="font-mono text-sm">{info.getValue()}</span>
         ),
       }),
-      columnHelper.accessor("domain", {
-        header: "Domain",
-        cell: (info) => (
-          <span className="text-sm text-muted-foreground">{info.getValue()}</span>
-        ),
-      }),
       columnHelper.accessor("sent24h", {
         header: "Sent (24h)",
         cell: (info) => (
@@ -65,10 +57,10 @@ export function MailUserListDataTable({
           <span className="text-sm">{info.getValue().toLocaleString()}</span>
         ),
       }),
-      columnHelper.accessor("bouncePercent", {
+      columnHelper.accessor("bounceRate", {
         header: "Bounce %",
         cell: (info) => {
-          const percent = info.getValue();
+          const percent = info.getValue() ?? 0;
           return (
             <span
               className={`text-sm ${
@@ -100,14 +92,6 @@ export function MailUserListDataTable({
       columnHelper.accessor("riskLevel", {
         header: "Risk Level",
         cell: (info) => <MailUserRiskLevelBadge level={info.getValue()} />,
-      }),
-      columnHelper.accessor("lastActive", {
-        header: "Last Active",
-        cell: (info) => (
-          <span className="text-sm text-muted-foreground">
-            {new Date(info.getValue()).toLocaleString()}
-          </span>
-        ),
       }),
     ],
     []

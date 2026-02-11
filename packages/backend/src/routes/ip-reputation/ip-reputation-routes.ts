@@ -57,7 +57,7 @@ export default async function ipReputationRoutes(app: FastifyInstance) {
     "/:ip/checks",
     { onRequest: [authHook] },
     async (request, reply) => {
-      const hours = request.query.hours ? parseInt(request.query.hours) : 24;
+      const hours = request.query.hours ? parseInt(request.query.hours, 10) : 24;
       const history = await reputationService.getIpCheckHistory(
         request.params.ip,
         hours,
@@ -75,7 +75,7 @@ export default async function ipReputationRoutes(app: FastifyInstance) {
     "/:ip/timeline",
     { onRequest: [authHook] },
     async (request, reply) => {
-      const days = request.query.days ? parseInt(request.query.days) : 7;
+      const days = request.query.days ? parseInt(request.query.days, 10) : 7;
       const timeline = await reputationService.getBlacklistTimeline(
         request.params.ip,
         days,

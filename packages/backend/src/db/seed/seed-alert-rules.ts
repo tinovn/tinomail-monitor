@@ -8,6 +8,8 @@ export const ALERT_RULES_SEED_DATA = [
   { name: "Bounce Rate Spike", severity: "critical", condition: "bounce_rate > threshold", threshold: 15, duration: "10 minutes", channels: ["telegram"], description: "Bounce rate above 15% for 10 minutes" },
   { name: "IP Blacklisted (Critical)", severity: "critical", condition: "ip_blacklisted_critical", threshold: 1, channels: ["telegram"], description: "IP listed on critical-tier blacklist" },
   { name: "Queue Overflow", severity: "critical", condition: "queue_size > threshold", threshold: 50000, duration: "5 minutes", channels: ["telegram"], description: "MTA queue exceeds 50K for 5 minutes" },
+  { name: "MongoDB No Primary", severity: "critical", condition: "mongodb_no_primary", threshold: 1, channels: ["telegram"], description: "No MongoDB node reporting PRIMARY role" },
+  { name: "MongoDB Repl Lag Critical", severity: "critical", condition: "repl_lag_seconds > threshold", threshold: 30, duration: "2 minutes", channels: ["telegram"], description: "MongoDB replication lag above 30s for 2 minutes" },
 
   // Warning — needs review
   { name: "CPU Warning", severity: "warning", condition: "cpu_percent > threshold", threshold: 80, duration: "10 minutes", channels: ["telegram"], description: "CPU above 80% for 10 minutes" },

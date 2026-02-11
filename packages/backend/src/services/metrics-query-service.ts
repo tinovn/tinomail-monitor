@@ -58,20 +58,59 @@ export class MetricsQueryService {
   async queryMongodbMetrics(query: TimeRangeQuery): Promise<MetricsQueryResult[]> {
     const from = new Date(query.from);
     const to = new Date(query.to);
+    const resolution = query.interval || this.selectResolution(from, to);
     const fromIso = from.toISOString();
     const toIso = to.toISOString();
     const nodeFilter = query.nodeId ? this.app.sql`AND node_id = ${query.nodeId}` : this.app.sql``;
 
+    // Use continuous aggregates for larger time ranges
+    if (resolution === "5m") {
+      const result = await this.app.sql`
+        SELECT bucket AS time, node_id, role, connections_current, connections_available,
+          ops_insert, ops_query, ops_update, ops_delete, ops_command,
+          repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+          oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
+        FROM mongodb_stats_5m
+        WHERE bucket >= ${fromIso}::timestamptz AND bucket <= ${toIso}::timestamptz ${nodeFilter}
+        ORDER BY bucket ASC LIMIT 10000
+      `;
+      return result as unknown as MetricsQueryResult[];
+    }
+    if (resolution === "1h") {
+      const result = await this.app.sql`
+        SELECT bucket AS time, node_id, role, connections_current, connections_available,
+          ops_insert, ops_query, ops_update, ops_delete, ops_command,
+          repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+          oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
+        FROM mongodb_stats_1h
+        WHERE bucket >= ${fromIso}::timestamptz AND bucket <= ${toIso}::timestamptz ${nodeFilter}
+        ORDER BY bucket ASC LIMIT 10000
+      `;
+      return result as unknown as MetricsQueryResult[];
+    }
+    if (resolution === "1d") {
+      const result = await this.app.sql`
+        SELECT bucket AS time, node_id, role, connections_current, connections_available,
+          ops_insert, ops_query, ops_update, ops_delete, ops_command,
+          repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+          oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
+        FROM mongodb_stats_daily
+        WHERE bucket >= ${fromIso}::timestamptz AND bucket <= ${toIso}::timestamptz ${nodeFilter}
+        ORDER BY bucket ASC LIMIT 10000
+      `;
+      return result as unknown as MetricsQueryResult[];
+    }
+
+    // Raw resolution
     const result = await this.app.sql`
-      SELECT
-        time, node_id, connections, op_insert, op_query, op_update,
-        op_delete, replication_lag, replica_set_status
+      SELECT time, node_id, role, connections_current, connections_available,
+        ops_insert, ops_query, ops_update, ops_delete, ops_command,
+        repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+        oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
       FROM metrics_mongodb
       WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
-      ORDER BY time ASC
-      LIMIT 10000
+      ORDER BY time ASC LIMIT 10000
     `;
-
     return result as unknown as MetricsQueryResult[];
   }
 
@@ -104,8 +143,9 @@ export class MetricsQueryService {
 
     const result = await this.app.sql`
       SELECT
-        time, node_id, queue_size, deferred, processing, sent_1h,
-        bounced_1h, deferred_1h, avg_latency
+        time, node_id, mta_role, queue_size, active_deliveries, sent_total,
+        delivered_total, bounced_total, deferred_total, rejected_total,
+        connections_active, throughput_per_sec
       FROM metrics_zonemta
       WHERE time >= ${fromIso}::timestamptz AND time <= ${toIso}::timestamptz ${nodeFilter}
       ORDER BY time ASC

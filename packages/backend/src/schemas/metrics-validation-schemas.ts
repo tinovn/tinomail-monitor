@@ -32,21 +32,25 @@ export const systemMetricsSchema = z.object({
   openFiles: z.number().int().nonnegative().optional(),
 });
 
-// MongoDB metrics ingestion schema
+// MongoDB metrics ingestion schema — flat structure matching Drizzle schema (16 columns)
 export const mongodbMetricsSchema = z.object({
   nodeId: z.string(),
   timestamp: z.string().datetime().optional(),
-  connections: z.number().int().nonnegative().optional(),
-  opCounters: z.object({
-    insert: z.number().int().nonnegative().optional(),
-    query: z.number().int().nonnegative().optional(),
-    update: z.number().int().nonnegative().optional(),
-    delete: z.number().int().nonnegative().optional(),
-    getmore: z.number().int().nonnegative().optional(),
-    command: z.number().int().nonnegative().optional(),
-  }).optional(),
-  replicationLag: z.number().nonnegative().optional(),
-  replicaSetStatus: z.string().optional(),
+  role: z.string().optional(),
+  connectionsCurrent: z.number().int().nonnegative().optional(),
+  connectionsAvailable: z.number().int().nonnegative().optional(),
+  opsInsert: z.number().int().nonnegative().optional(),
+  opsQuery: z.number().int().nonnegative().optional(),
+  opsUpdate: z.number().int().nonnegative().optional(),
+  opsDelete: z.number().int().nonnegative().optional(),
+  opsCommand: z.number().int().nonnegative().optional(),
+  replLagSeconds: z.number().nonnegative().optional(),
+  dataSizeBytes: z.number().int().nonnegative().optional(),
+  indexSizeBytes: z.number().int().nonnegative().optional(),
+  storageSizeBytes: z.number().int().nonnegative().optional(),
+  oplogWindowHours: z.number().nonnegative().optional(),
+  wtCacheUsedBytes: z.number().int().nonnegative().optional(),
+  wtCacheMaxBytes: z.number().int().nonnegative().optional(),
 });
 
 // Redis metrics ingestion schema
@@ -61,17 +65,20 @@ export const redisMetricsSchema = z.object({
   evictedKeys: z.number().int().nonnegative().optional(),
 });
 
-// ZoneMTA metrics ingestion schema
+// ZoneMTA metrics ingestion schema — matches metrics_zonemta hypertable
 export const zonemtaMetricsSchema = z.object({
   nodeId: z.string(),
   timestamp: z.string().datetime().optional(),
+  mtaRole: z.string().optional(),
   queueSize: z.number().int().nonnegative().optional(),
-  deferred: z.number().int().nonnegative().optional(),
-  processing: z.number().int().nonnegative().optional(),
-  sent1h: z.number().int().nonnegative().optional(),
-  bounced1h: z.number().int().nonnegative().optional(),
-  deferred1h: z.number().int().nonnegative().optional(),
-  avgLatency: z.number().nonnegative().optional(),
+  activeDeliveries: z.number().int().nonnegative().optional(),
+  sentTotal: z.number().int().nonnegative().optional(),
+  deliveredTotal: z.number().int().nonnegative().optional(),
+  bouncedTotal: z.number().int().nonnegative().optional(),
+  deferredTotal: z.number().int().nonnegative().optional(),
+  rejectedTotal: z.number().int().nonnegative().optional(),
+  connectionsActive: z.number().int().nonnegative().optional(),
+  throughputPerSec: z.number().nonnegative().optional(),
 });
 
 // Rspamd metrics ingestion schema

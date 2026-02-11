@@ -13,6 +13,7 @@ import {
   Bell,
   FileText,
   Settings,
+  Database,
 } from "lucide-react";
 import { useSidebarStore } from "@/stores/sidebar-navigation-store";
 import { cn } from "@/lib/classname-utils";
@@ -20,8 +21,9 @@ import { cn } from "@/lib/classname-utils";
 const navItems = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, to: "/" },
   { id: "servers", label: "Servers", icon: Server, to: "/servers" },
+  { id: "mongodb", label: "MongoDB", icon: Database, to: "/servers/mongodb" },
   { id: "email-flow", label: "Email Flow", icon: Mail, to: "/email-flow" },
-  { id: "zonemta", label: "ZoneMTA / IPs", icon: Network, to: "/zonemta" },
+  { id: "zonemta", label: "ZoneMTA / IPs", icon: Network, to: "/servers/zonemta" },
   { id: "domains", label: "Domains", icon: Globe, to: "/domains" },
   { id: "users", label: "Users", icon: Users, to: "/users" },
   {
@@ -57,7 +59,7 @@ export function AppSidebarNavigation() {
     <nav className="flex-1 space-y-0.5 px-1.5 py-2">
       {navItems.map((item) => {
         const Icon = item.icon;
-        const isActive = currentPath === item.to;
+        const isActive = currentPath === item.to || (item.to !== "/" && currentPath.startsWith(item.to));
 
         return (
           <Link

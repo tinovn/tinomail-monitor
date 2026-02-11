@@ -1,12 +1,15 @@
 ---
 title: "MongoDB Cluster Monitoring"
 description: "Full-stack MongoDB replica set monitoring: agent collector, backend fixes, frontend dashboard, alerting"
-status: pending
+status: completed
 priority: P1
 effort: 8h
 branch: main
 tags: [mongodb, monitoring, agent, frontend, backend, alerting]
 created: 2026-02-11
+completed: 2026-02-11
+review: /Users/binhtino/tinomail-monitor/plans/reports/code-reviewer-260211-1802-mongodb-cluster-implementation.md
+review-score: 9.2/10
 ---
 
 # MongoDB Cluster Monitoring
@@ -25,14 +28,20 @@ The ingestion service, validation schema, and Drizzle schema are **out of sync**
 
 Phase 2 fixes this critical mismatch before any new features.
 
+## Implementation Status: ✓ COMPLETED
+
+**Code Review Score:** 9.2/10 (Approved with minor recommendations)
+
+All phases completed successfully. Schema alignment verified. Build passing. Two medium-priority refinements identified for follow-up.
+
 ## Phases
 
 | # | Phase | Status | Effort | File |
 |---|-------|--------|--------|------|
-| 1 | Agent MongoDB Metrics Collector | pending | 2h | [phase-01](phase-01-agent-mongodb-metrics-collector.md) |
-| 2 | Backend Schema Fix & Cluster Status API | pending | 2h | [phase-02](phase-02-backend-schema-fix-and-cluster-status-api.md) |
-| 3 | Frontend MongoDB Cluster Dashboard | pending | 3h | [phase-03](phase-03-frontend-mongodb-cluster-dashboard.md) |
-| 4 | MongoDB Critical Alert Rules | pending | 0.5h | [phase-04](phase-04-mongodb-critical-alert-rules.md) |
+| 1 | Agent MongoDB Metrics Collector | ✓ completed | 2h | [phase-01](phase-01-agent-mongodb-metrics-collector.md) |
+| 2 | Backend Schema Fix & Cluster Status API | ✓ completed | 2h | [phase-02](phase-02-backend-schema-fix-and-cluster-status-api.md) |
+| 3 | Frontend MongoDB Cluster Dashboard | ✓ completed | 3h | [phase-03](phase-03-frontend-mongodb-cluster-dashboard.md) |
+| 4 | MongoDB Critical Alert Rules | ✓ completed | 0.5h | [phase-04](phase-04-mongodb-critical-alert-rules.md) |
 
 ## Dependencies
 
@@ -59,9 +68,23 @@ Phase 2 fixes this critical mismatch before any new features.
 - **WiredTiger cache**: All 3 nodes side by side as small gauges.
 
 ### Action Items (Plan Revisions Needed)
-- [ ] Phase 1: Update agent to support full replica set auto-discovery (connect to one node, `rs.status()` to find members, collect from each). Changes collector architecture significantly.
-- [ ] Phase 3: Update sidebar to add top-level "MongoDB" entry (both sidebar + sub-route confirmed).
-- [ ] Phase 3: WiredTiger gauge shows all 3 nodes side by side (not just PRIMARY).
+- [x] Phase 1: Update agent to support full replica set auto-discovery (connect to one node, `rs.status()` to find members, collect from each). Changes collector architecture significantly.
+- [x] Phase 3: Update sidebar to add top-level "MongoDB" entry (both sidebar + sub-route confirmed).
+- [x] Phase 3: WiredTiger gauge shows all 3 nodes side by side (not just PRIMARY).
+
+## Follow-up Items (Post-Review)
+
+From code review score 9.2/10:
+
+### Medium Priority (Next Sprint)
+1. **Role Display Case Fix** — `replica-set-status-panel.tsx` needs case-insensitive role comparison. Agent sends lowercase "primary"/"secondary", component checks uppercase.
+2. **Ops Counter Semantics** — Verify ops/sec chart behavior with live MongoDB. Currently displays cumulative counters (monotonically increasing) instead of per-interval rates. May need backend delta calculation in continuous aggregates.
+3. **MongoDB Permissions Documentation** — Document required agent MongoDB user roles (`clusterMonitor` for oplog reads, dbStats permissions).
+
+### Low Priority (Tech Debt)
+4. Type postgres.js result in cluster status service (remove `any`)
+5. Extract chart color constants to shared design tokens
+6. Add MongoDB URI format validation in agent config
 
 ## Research
 

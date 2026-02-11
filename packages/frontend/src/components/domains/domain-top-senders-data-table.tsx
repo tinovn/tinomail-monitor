@@ -10,11 +10,12 @@ import {
 import { cn } from "@/lib/classname-utils";
 
 interface TopSenderData {
-  fromUser: string;
-  sent: number;
+  sender: string;
+  totalSent: number;
   delivered: number;
   bounced: number;
-  deliveredPercent: number;
+  complained: number;
+  bounceRate: number;
 }
 
 const columnHelper = createColumnHelper<TopSenderData>();
@@ -32,23 +33,23 @@ export function DomainTopSendersDataTable({
 }: DomainTopSendersDataTableProps) {
   const columns = useMemo(
     () => [
-      columnHelper.accessor("fromUser", {
+      columnHelper.accessor("sender", {
         header: "Sender",
         cell: (info) => (
           <span className="font-mono text-sm">{info.getValue()}</span>
         ),
       }),
-      columnHelper.accessor("sent", {
+      columnHelper.accessor("totalSent", {
         header: "Sent",
         cell: (info) => (
-          <span className="text-sm">{info.getValue().toLocaleString()}</span>
+          <span className="text-sm">{(info.getValue() ?? 0).toLocaleString()}</span>
         ),
       }),
       columnHelper.accessor("delivered", {
         header: "Delivered",
         cell: (info) => (
           <span className="text-sm text-status-ok">
-            {info.getValue().toLocaleString()}
+            {(info.getValue() ?? 0).toLocaleString()}
           </span>
         ),
       }),
@@ -56,14 +57,16 @@ export function DomainTopSendersDataTable({
         header: "Bounced",
         cell: (info) => (
           <span className="text-sm text-status-critical">
-            {info.getValue().toLocaleString()}
+            {(info.getValue() ?? 0).toLocaleString()}
           </span>
         ),
       }),
-      columnHelper.accessor("deliveredPercent", {
+      columnHelper.display({
+        id: "deliveryRate",
         header: "Delivery Rate",
         cell: (info) => {
-          const percent = info.getValue();
+          const row = info.row.original;
+          const percent = row.totalSent > 0 ? (row.delivered / row.totalSent) * 100 : 0;
           return (
             <span
               className={cn(

@@ -11,7 +11,7 @@ interface MailUsersResponse {
   users: MailUserListItem[];
   total: number;
   page: number;
-  limit: number;
+  pageCount: number;
 }
 
 export const Route = createFileRoute("/_authenticated/users/")({

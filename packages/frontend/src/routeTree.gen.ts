@@ -38,6 +38,7 @@ import { Route as AuthenticatedAlertsRulesRouteImport } from './routes/_authenti
 import { Route as AuthenticatedAlertsHistoryRouteImport } from './routes/_authenticated/alerts/history'
 import { Route as AuthenticatedAlertsChannelsRouteImport } from './routes/_authenticated/alerts/channels'
 import { Route as AuthenticatedServersZonemtaIndexRouteImport } from './routes/_authenticated/servers/zonemta/index'
+import { Route as AuthenticatedServersMongodbIndexRouteImport } from './routes/_authenticated/servers/mongodb/index'
 import { Route as AuthenticatedServersZonemtaNodeIdRouteImport } from './routes/_authenticated/servers/zonemta/$nodeId'
 import { Route as AuthenticatedLogsTraceMessageIdRouteImport } from './routes/_authenticated/logs/trace.$messageId'
 
@@ -208,6 +209,12 @@ const AuthenticatedServersZonemtaIndexRoute =
     path: '/servers/zonemta/',
     getParentRoute: () => AuthenticatedRoute,
   } as any)
+const AuthenticatedServersMongodbIndexRoute =
+  AuthenticatedServersMongodbIndexRouteImport.update({
+    id: '/servers/mongodb/',
+    path: '/servers/mongodb/',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 const AuthenticatedServersZonemtaNodeIdRoute =
   AuthenticatedServersZonemtaNodeIdRouteImport.update({
     id: '/servers/zonemta/$nodeId',
@@ -251,6 +258,7 @@ export interface FileRoutesByFullPath {
   '/users/': typeof AuthenticatedUsersIndexRoute
   '/logs/trace/$messageId': typeof AuthenticatedLogsTraceMessageIdRoute
   '/servers/zonemta/$nodeId': typeof AuthenticatedServersZonemtaNodeIdRoute
+  '/servers/mongodb/': typeof AuthenticatedServersMongodbIndexRoute
   '/servers/zonemta/': typeof AuthenticatedServersZonemtaIndexRoute
 }
 export interface FileRoutesByTo {
@@ -283,6 +291,7 @@ export interface FileRoutesByTo {
   '/users': typeof AuthenticatedUsersIndexRoute
   '/logs/trace/$messageId': typeof AuthenticatedLogsTraceMessageIdRoute
   '/servers/zonemta/$nodeId': typeof AuthenticatedServersZonemtaNodeIdRoute
+  '/servers/mongodb': typeof AuthenticatedServersMongodbIndexRoute
   '/servers/zonemta': typeof AuthenticatedServersZonemtaIndexRoute
 }
 export interface FileRoutesById {
@@ -317,6 +326,7 @@ export interface FileRoutesById {
   '/_authenticated/users/': typeof AuthenticatedUsersIndexRoute
   '/_authenticated/logs/trace/$messageId': typeof AuthenticatedLogsTraceMessageIdRoute
   '/_authenticated/servers/zonemta/$nodeId': typeof AuthenticatedServersZonemtaNodeIdRoute
+  '/_authenticated/servers/mongodb/': typeof AuthenticatedServersMongodbIndexRoute
   '/_authenticated/servers/zonemta/': typeof AuthenticatedServersZonemtaIndexRoute
 }
 export interface FileRouteTypes {
@@ -351,6 +361,7 @@ export interface FileRouteTypes {
     | '/users/'
     | '/logs/trace/$messageId'
     | '/servers/zonemta/$nodeId'
+    | '/servers/mongodb/'
     | '/servers/zonemta/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -383,6 +394,7 @@ export interface FileRouteTypes {
     | '/users'
     | '/logs/trace/$messageId'
     | '/servers/zonemta/$nodeId'
+    | '/servers/mongodb'
     | '/servers/zonemta'
   id:
     | '__root__'
@@ -416,6 +428,7 @@ export interface FileRouteTypes {
     | '/_authenticated/users/'
     | '/_authenticated/logs/trace/$messageId'
     | '/_authenticated/servers/zonemta/$nodeId'
+    | '/_authenticated/servers/mongodb/'
     | '/_authenticated/servers/zonemta/'
   fileRoutesById: FileRoutesById
 }
@@ -629,6 +642,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServersZonemtaIndexRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/servers/mongodb/': {
+      id: '/_authenticated/servers/mongodb/'
+      path: '/servers/mongodb'
+      fullPath: '/servers/mongodb/'
+      preLoaderRoute: typeof AuthenticatedServersMongodbIndexRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/servers/zonemta/$nodeId': {
       id: '/_authenticated/servers/zonemta/$nodeId'
       path: '/servers/zonemta/$nodeId'
@@ -675,6 +695,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedUsersIndexRoute: typeof AuthenticatedUsersIndexRoute
   AuthenticatedLogsTraceMessageIdRoute: typeof AuthenticatedLogsTraceMessageIdRoute
   AuthenticatedServersZonemtaNodeIdRoute: typeof AuthenticatedServersZonemtaNodeIdRoute
+  AuthenticatedServersMongodbIndexRoute: typeof AuthenticatedServersMongodbIndexRoute
   AuthenticatedServersZonemtaIndexRoute: typeof AuthenticatedServersZonemtaIndexRoute
 }
 
@@ -710,6 +731,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedLogsTraceMessageIdRoute: AuthenticatedLogsTraceMessageIdRoute,
   AuthenticatedServersZonemtaNodeIdRoute:
     AuthenticatedServersZonemtaNodeIdRoute,
+  AuthenticatedServersMongodbIndexRoute: AuthenticatedServersMongodbIndexRoute,
   AuthenticatedServersZonemtaIndexRoute: AuthenticatedServersZonemtaIndexRoute,
 }
 
