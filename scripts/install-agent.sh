@@ -5,6 +5,13 @@
 # =============================================================================
 set -e
 
+# --- Must run as root ---
+if [ "$(id -u)" -ne 0 ]; then
+  echo "ERROR: This script must be run as root (use sudo)"
+  echo "  sudo bash $0 $*"
+  exit 1
+fi
+
 # --- Configuration (override via arguments or env) ---
 MONITOR_URL="${MONITOR_URL:-https://mail-monitor.tino.vn}"
 API_KEY="${API_KEY:-}"
