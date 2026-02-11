@@ -4,6 +4,8 @@ import { agentAuthHook } from "../../hooks/agent-auth-hook.js";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
 import { nodes } from "../../db/schema/nodes-table.js";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 
 /** Agent source files to download during update (relative to GitHub raw URL) */
 const AGENT_SOURCE_FILES = [
@@ -48,14 +50,12 @@ export default async function agentVersionCheckRoutes(app: FastifyInstance) {
 
       // Read latest agent version from agent package.json (synced via deploy)
       // For simplicity, we read it from the monorepo's agent package.json
-      let latestVersion = "0.1.1";
+      let latestVersion = "0.3.0";
       try {
-        const pkgPath = new URL(
-          "../../../agent/package.json",
-          import.meta.url,
-        );
-        const pkg = await import(pkgPath.href, { with: { type: "json" } });
-        latestVersion = pkg.default?.version || latestVersion;
+        // Resolve from monorepo root (process.cwd)
+        const pkgPath = resolve(process.cwd(), "packages/agent/package.json");
+        const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+        latestVersion = pkg.version || latestVersion;
       } catch {
         // Fallback to hardcoded version
       }
