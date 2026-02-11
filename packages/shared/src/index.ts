@@ -1,5 +1,6 @@
 // Types
 export type {
+  ProcessHealth,
   SystemMetrics,
   MongodbMetrics,
   RedisMetrics,

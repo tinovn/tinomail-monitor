@@ -284,6 +284,9 @@ export class MonitoringAgent {
       const processes = await this.processCollector.collect();
       const runningProcesses = processes.filter((p) => p.running);
 
+      // Include process health in system metrics payload
+      metrics.processes = processes;
+
       console.info(
         `[Agent] Metrics: CPU=${metrics.cpuPercent}% RAM=${metrics.ramPercent}% ` +
           `Load=${metrics.load1m.toFixed(2)} Processes=${runningProcesses.length}/${processes.length}`

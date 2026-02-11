@@ -8,6 +8,15 @@ export const timeRangeQuerySchema = z.object({
   interval: z.enum(["15s", "5m", "1h", "1d"]).optional(),
 });
 
+// Process health schema (sent alongside system metrics, stored in node metadata)
+const processHealthSchema = z.object({
+  name: z.string(),
+  running: z.boolean(),
+  pid: z.number().int().nullable(),
+  cpuPercent: z.number().nonnegative(),
+  memoryMB: z.number().nonnegative(),
+});
+
 // System metrics ingestion schema
 export const systemMetricsSchema = z.object({
   nodeId: z.string(),
@@ -30,6 +39,7 @@ export const systemMetricsSchema = z.object({
   tcpEstablished: z.number().int().nonnegative().optional(),
   tcpTimeWait: z.number().int().nonnegative().optional(),
   openFiles: z.number().int().nonnegative().optional(),
+  processes: z.array(processHealthSchema).optional(),
 });
 
 // MongoDB metrics ingestion schema — flat structure matching Drizzle schema (16 columns)

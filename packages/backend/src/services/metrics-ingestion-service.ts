@@ -1,4 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { eq, sql } from "drizzle-orm";
+import { nodes } from "../db/schema/nodes-table.js";
 import type {
   SystemMetricsInput,
   MongodbMetricsInput,
@@ -12,6 +14,7 @@ export class MetricsIngestionService {
 
   async ingestSystemMetrics(metrics: SystemMetricsInput): Promise<void> {
     const timestamp = metrics.timestamp || new Date().toISOString();
+    const { processes, ...systemData } = metrics;
 
     await this.app.sql`
       INSERT INTO metrics_system (
@@ -20,16 +23,29 @@ export class MetricsIngestionService {
         net_rx_bytes_sec, net_tx_bytes_sec, net_rx_errors, net_tx_errors,
         load_1m, load_5m, load_15m, tcp_established, tcp_time_wait, open_files
       ) VALUES (
-        ${timestamp}, ${metrics.nodeId}, ${metrics.nodeRole}, ${metrics.cpuPercent ?? null},
-        ${metrics.ramPercent ?? null}, ${metrics.ramUsedBytes ?? null}, ${metrics.diskPercent ?? null},
-        ${metrics.diskFreeBytes ?? null}, ${metrics.diskReadBytesSec ?? null}, ${metrics.diskWriteBytesSec ?? null},
-        ${metrics.netRxBytesSec ?? null}, ${metrics.netTxBytesSec ?? null}, ${metrics.netRxErrors ?? null},
-        ${metrics.netTxErrors ?? null}, ${metrics.load1m ?? null}, ${metrics.load5m ?? null}, ${metrics.load15m ?? null},
-        ${metrics.tcpEstablished ?? null}, ${metrics.tcpTimeWait ?? null}, ${metrics.openFiles ?? null}
+        ${timestamp}, ${systemData.nodeId}, ${systemData.nodeRole}, ${systemData.cpuPercent ?? null},
+        ${systemData.ramPercent ?? null}, ${systemData.ramUsedBytes ?? null}, ${systemData.diskPercent ?? null},
+        ${systemData.diskFreeBytes ?? null}, ${systemData.diskReadBytesSec ?? null}, ${systemData.diskWriteBytesSec ?? null},
+        ${systemData.netRxBytesSec ?? null}, ${systemData.netTxBytesSec ?? null}, ${systemData.netRxErrors ?? null},
+        ${systemData.netTxErrors ?? null}, ${systemData.load1m ?? null}, ${systemData.load5m ?? null}, ${systemData.load15m ?? null},
+        ${systemData.tcpEstablished ?? null}, ${systemData.tcpTimeWait ?? null}, ${systemData.openFiles ?? null}
       )
     `;
 
-    this.app.log.debug({ nodeId: metrics.nodeId }, "System metrics ingested");
+    // Update node metadata with latest process health (non-blocking)
+    if (processes && processes.length > 0) {
+      this.app.db
+        .update(nodes)
+        .set({
+          metadata: sql`COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ processes })}::jsonb`,
+          lastSeen: new Date(),
+        })
+        .where(eq(nodes.id, systemData.nodeId))
+        .execute()
+        .catch((err) => this.app.log.error(err, "Failed to update node processes"));
+    }
+
+    this.app.log.debug({ nodeId: systemData.nodeId }, "System metrics ingested");
   }
 
   async ingestMongodbMetrics(metrics: MongodbMetricsInput): Promise<void> {

@@ -1,3 +1,12 @@
+/** Process health snapshot from agent */
+export interface ProcessHealth {
+  name: string;
+  running: boolean;
+  pid: number | null;
+  cpuPercent: number;
+  memoryMB: number;
+}
+
 /** System-level metrics collected every 15s from each node */
 export interface SystemMetrics {
   time: Date;
@@ -20,6 +29,8 @@ export interface SystemMetrics {
   tcpEstablished: number;
   tcpTimeWait: number;
   openFiles: number;
+  /** Real-time process health (not stored in hypertable, stored in node metadata) */
+  processes?: ProcessHealth[];
 }
 
 /** MongoDB-specific metrics collected every 30s */
