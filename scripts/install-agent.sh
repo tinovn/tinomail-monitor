@@ -87,6 +87,7 @@ cat > package.json << 'PKGJSON'
   "type": "module",
   "dependencies": {
     "systeminformation": "^5.23.0",
+    "mongodb": "^6.12.0",
     "zod": "^3.23.0"
   },
   "devDependencies": {
@@ -175,12 +176,12 @@ export interface MongodbMetrics {
 }
 SHAREDTYPES
 
-# Patch imports to use local shared types instead of @tinomail/shared
-find src -name '*.ts' -exec sed -i 's|from "@tinomail/shared"|from "../shared/index.js"|g' {} + 2>/dev/null
-find src -name '*.ts' -exec sed -i 's|from "@tinomail/shared"|from "../../shared/index.js"|g' {} + 2>/dev/null
-# Fix relative paths for files in subdirectories
-sed -i 's|from "../shared/index.js"|from "../../shared/index.js"|g' src/collectors/*.ts 2>/dev/null || true
-sed -i 's|from "../shared/index.js"|from "../../shared/index.js"|g' src/transport/*.ts 2>/dev/null || true
+# Patch imports: replace @tinomail/shared with correct relative path per depth
+# src/*.ts -> ./shared/index.js
+sed -i 's|from "@tinomail/shared"|from "./shared/index.js"|g' src/*.ts 2>/dev/null || true
+# src/collectors/*.ts and src/transport/*.ts -> ../shared/index.js
+sed -i 's|from "@tinomail/shared"|from "../shared/index.js"|g' src/collectors/*.ts 2>/dev/null || true
+sed -i 's|from "@tinomail/shared"|from "../shared/index.js"|g' src/transport/*.ts 2>/dev/null || true
 
 # Create tsconfig
 cat > tsconfig.json << 'TSCONFIG'
