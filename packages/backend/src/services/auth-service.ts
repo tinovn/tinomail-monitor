@@ -12,6 +12,17 @@ interface TokenPair {
   expiresIn: string;
 }
 
+interface LoginResult extends TokenPair {
+  user: {
+    id: number;
+    username: string;
+    role: string;
+    telegramId: string | null;
+    email: string | null;
+    createdAt: Date | null;
+  };
+}
+
 export class AuthService {
   constructor(private app: FastifyInstance) {}
 
@@ -46,7 +57,7 @@ export class AuthService {
     };
   }
 
-  async login(username: string, password: string): Promise<TokenPair | null> {
+  async login(username: string, password: string): Promise<LoginResult | null> {
     const [user] = await this.app.db
       .select()
       .from(dashboardUsers)
@@ -62,7 +73,18 @@ export class AuthService {
       return null;
     }
 
-    return this.generateTokens(user.id, user.username, user.role || "viewer");
+    const tokens = await this.generateTokens(user.id, user.username, user.role || "viewer");
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        username: user.username,
+        role: user.role || "viewer",
+        telegramId: user.telegramId,
+        email: user.email,
+        createdAt: user.createdAt,
+      },
+    };
   }
 
   async refreshToken(oldToken: string): Promise<TokenPair | null> {
