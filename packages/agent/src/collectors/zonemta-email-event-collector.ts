@@ -104,10 +104,11 @@ export class ZonemtaEmailEventCollector {
     }
 
     this.changeStream = collection.watch(pipeline, options);
-    this.reconnectAttempts = 0;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     this.changeStream.on("change", (change: any) => {
+      // Reset reconnect counter on successful data — stream is healthy
+      this.reconnectAttempts = 0;
       try {
         this.handleChange(change);
       } catch (err) {
@@ -115,8 +116,13 @@ export class ZonemtaEmailEventCollector {
       }
     });
 
-    this.changeStream.on("error", (err) => {
-      console.error("[ZoneMTA Events] Change stream error:", err);
+    this.changeStream.on("error", (err: Error & { code?: number }) => {
+      // Don't retry on auth errors — requires manual fix (MongoDB user permissions)
+      if (err.code === 13) {
+        console.error("[ZoneMTA Events] Not authorized on zone-mta database. Grant read access to the MongoDB user.");
+        return;
+      }
+      console.error("[ZoneMTA Events] Change stream error:", err.message);
       this.scheduleReconnect();
     });
   }
