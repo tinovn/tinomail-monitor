@@ -161,13 +161,16 @@ export class MonitoringAgent {
       });
     }, this.config.AGENT_DISCOVERY_INTERVAL);
 
-    // Auto-update check loop (every 5 minutes)
+    // Auto-update check loop (every 5 minutes) + immediate first check
     const UPDATE_CHECK_INTERVAL = 5 * 60 * 1000;
     this.updateCheckIntervalId = setInterval(() => {
       this.checkAndUpdate().catch((err) => {
         console.error("[Agent] Update check error:", err);
       });
     }, UPDATE_CHECK_INTERVAL);
+    this.checkAndUpdate().catch((err) => {
+      console.error("[Agent] Initial update check error:", err);
+    });
 
     console.info(`[Agent] Started successfully (v${AGENT_VERSION})`);
   }
