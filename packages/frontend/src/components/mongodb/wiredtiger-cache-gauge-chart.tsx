@@ -24,7 +24,7 @@ export function WiredtigerCacheGaugeChart({
     series: nodes.map((node, index) => {
       const percentage =
         node.wtCacheUsedBytes !== null && node.wtCacheMaxBytes !== null
-          ? (node.wtCacheUsedBytes / node.wtCacheMaxBytes) * 100
+          ? Math.round((node.wtCacheUsedBytes / node.wtCacheMaxBytes) * 1000) / 10
           : 0;
 
       return {
