@@ -24,6 +24,7 @@ interface NodeWithMetrics {
   registeredAt: string;
   lastSeen: string | null;
   metadata: Record<string, unknown> | null;
+  agentVersion: string | null;
   cpuPercent: number | null;
   ramPercent: number | null;
   diskPercent: number | null;
@@ -95,6 +96,18 @@ export function ServerListDataTable({
         cell: (info) => (
           <span className="text-sm text-foreground">{info.getValue() || "—"}</span>
         ),
+        enableSorting: true,
+      }),
+      columnHelper.accessor("agentVersion", {
+        header: "Version",
+        cell: (info) => {
+          const version = info.getValue();
+          return version ? (
+            <span className="font-mono text-xs text-muted-foreground">v{version}</span>
+          ) : (
+            <span className="text-muted-foreground">—</span>
+          );
+        },
         enableSorting: true,
       }),
       columnHelper.accessor("registeredAt", {

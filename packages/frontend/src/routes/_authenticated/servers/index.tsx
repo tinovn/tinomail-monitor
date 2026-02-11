@@ -17,6 +17,7 @@ interface NodeWithMetrics {
   registeredAt: string;
   lastSeen: string | null;
   metadata: Record<string, unknown> | null;
+  agentVersion: string | null;
   cpuPercent: number | null;
   ramPercent: number | null;
   diskPercent: number | null;
