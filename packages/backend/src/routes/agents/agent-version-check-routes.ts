@@ -17,7 +17,9 @@ const AGENT_SOURCE_FILES = [
   "collectors/service-auto-discovery-collector.ts",
   "collectors/zonemta-metrics-collector.ts",
   "collectors/redis-metrics-collector.ts",
+  "collectors/zonemta-email-event-collector.ts",
   "transport/http-metrics-transport.ts",
+  "transport/event-http-transport.ts",
   "transport/offline-metrics-buffer.ts",
 ];
 

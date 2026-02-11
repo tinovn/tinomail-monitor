@@ -10,6 +10,8 @@ import {
   HttpMetricsTransport,
   type TransportConfig,
 } from "./transport/http-metrics-transport.js";
+import { EventHttpTransport } from "./transport/event-http-transport.js";
+import { ZonemtaEmailEventCollector } from "./collectors/zonemta-email-event-collector.js";
 import { OfflineMetricsBuffer } from "./transport/offline-metrics-buffer.js";
 import { SelfUpdater } from "./self-updater.js";
 import * as si from "systeminformation";
@@ -21,6 +23,8 @@ export class MonitoringAgent {
   private mongodbCollector: MongodbMetricsCollector | null = null;
   private zonemtaCollector: ZonemtaMetricsCollector | null = null;
   private redisCollector: RedisMetricsCollector | null = null;
+  private zonemtaEventCollector: ZonemtaEmailEventCollector | null = null;
+  private eventTransport: EventHttpTransport | null = null;
   private transport: HttpMetricsTransport;
   private buffer: OfflineMetricsBuffer;
   private updater: SelfUpdater;
@@ -42,6 +46,20 @@ export class MonitoringAgent {
 
     if (config.AGENT_MONGODB_URI) {
       this.mongodbCollector = new MongodbMetricsCollector(config.AGENT_MONGODB_URI);
+    }
+
+    if (config.AGENT_ZONEMTA_MONGODB_URI) {
+      this.eventTransport = new EventHttpTransport({
+        serverUrl: config.AGENT_SERVER_URL,
+        apiKey: config.AGENT_API_KEY,
+        timeoutMs: 10000,
+        maxRetries: 3,
+      });
+      this.zonemtaEventCollector = new ZonemtaEmailEventCollector(
+        config.AGENT_ZONEMTA_MONGODB_URI,
+        config.AGENT_NODE_ID,
+        this.eventTransport
+      );
     }
 
     const transportConfig: TransportConfig = {
@@ -86,6 +104,17 @@ export class MonitoringAgent {
       } catch (error) {
         console.error("[Agent] MongoDB collector connection failed:", error);
         this.mongodbCollector = null;
+      }
+    }
+
+    // Connect ZoneMTA event collector (change stream) if configured
+    if (this.zonemtaEventCollector) {
+      try {
+        await this.zonemtaEventCollector.connect();
+        console.info("[Agent] ZoneMTA email event collector started");
+      } catch (error) {
+        console.error("[Agent] ZoneMTA event collector failed to start:", error);
+        this.zonemtaEventCollector = null;
       }
     }
 
@@ -178,6 +207,10 @@ export class MonitoringAgent {
     this.redisIntervalId = null;
     this.discoveryIntervalId = null;
     this.updateCheckIntervalId = null;
+
+    if (this.zonemtaEventCollector) {
+      await this.zonemtaEventCollector.disconnect();
+    }
 
     if (this.mongodbCollector) {
       await this.mongodbCollector.disconnect();

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Bump this on each agent release */
-export const AGENT_VERSION = "0.2.0";
+export const AGENT_VERSION = "0.3.0";
 
 const envSchema = z.object({
   AGENT_SERVER_URL: z.string().default("http://localhost:3001"),
@@ -12,6 +12,7 @@ const envSchema = z.object({
   AGENT_MONGODB_URI: z.string().optional(),
   AGENT_MONGODB_INTERVAL: z.coerce.number().default(30000),
   AGENT_ZONEMTA_API_URL: z.string().default("http://localhost:12080"),
+  AGENT_ZONEMTA_MONGODB_URI: z.string().optional(),
   AGENT_REDIS_URL: z.string().default("redis://localhost:6379"),
   AGENT_DISCOVERY_INTERVAL: z.coerce.number().default(300000),
 });
