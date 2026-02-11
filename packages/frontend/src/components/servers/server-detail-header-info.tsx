@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { Node } from "@tinomail/shared";
 import { StatusIndicatorDot } from "@/components/shared/status-indicator-dot";
+import { ProgressBarInlineWithLabel } from "@/components/shared/progress-bar-inline-with-label";
 import { formatDistanceToNow } from "date-fns";
 import { apiClient } from "@/lib/api-http-client";
 import { useAuthStore } from "@/stores/auth-session-store";
@@ -8,11 +9,26 @@ import { NodeActionConfirmDialog } from "@/components/servers/node-action-confir
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 
-interface ServerDetailHeaderInfoProps {
-  node: Node;
+interface NodeMetrics {
+  cpuPercent: number | null;
+  ramPercent: number | null;
+  diskPercent: number | null;
+  ramUsedBytes: number | null;
+  diskFreeBytes: number | null;
 }
 
-export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
+interface ServerDetailHeaderInfoProps {
+  node: Node;
+  metrics?: NodeMetrics | null;
+}
+
+function formatBytes(bytes: number | null): string {
+  if (bytes === null || bytes === 0) return "—";
+  const gb = bytes / 1024 / 1024 / 1024;
+  return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / 1024 / 1024).toFixed(0)} MB`;
+}
+
+export function ServerDetailHeaderInfo({ node, metrics }: ServerDetailHeaderInfoProps) {
   const user = useAuthStore((s) => s.user);
   const isAdmin = user?.role === "admin";
   const navigate = useNavigate();
@@ -76,6 +92,36 @@ export function ServerDetailHeaderInfo({ node }: ServerDetailHeaderInfoProps) {
             )}
           </div>
         </div>
+
+        {/* Live metrics summary */}
+        {metrics && (
+          <div className="flex items-center gap-6">
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">CPU</div>
+              <ProgressBarInlineWithLabel
+                percent={metrics.cpuPercent ?? 0}
+                width="w-28"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">RAM</div>
+              <ProgressBarInlineWithLabel
+                percent={metrics.ramPercent ?? 0}
+                absoluteText={formatBytes(metrics.ramUsedBytes)}
+                width="w-28"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="text-xs text-muted-foreground">Disk</div>
+              <ProgressBarInlineWithLabel
+                percent={metrics.diskPercent ?? 0}
+                absoluteText={metrics.diskFreeBytes != null ? `${formatBytes(metrics.diskFreeBytes)} free` : undefined}
+                width="w-28"
+              />
+            </div>
+          </div>
+        )}
+
         <div className="text-right">
           <div className="text-sm text-muted-foreground">Uptime</div>
           <div className="mt-1 text-lg font-semibold text-foreground">{uptime}</div>
