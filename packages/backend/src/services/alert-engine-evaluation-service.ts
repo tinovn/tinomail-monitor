@@ -1,0 +1,325 @@
+import type { FastifyInstance } from "fastify";
+import { eq, and, desc } from "drizzle-orm";
+import { alertRules } from "../db/schema/alert-rules-table.js";
+import { alertEvents } from "../db/schema/alert-events-table.js";
+
+interface ConditionParsed {
+  type: "metric_threshold" | "absence" | "count";
+  metric?: string;
+  operator?: string;
+  value?: number;
+  timeWindow?: string;
+  table?: string;
+}
+
+/** Alert engine — evaluates rules and fires/resolves alerts */
+export class AlertEngineEvaluationService {
+  constructor(private app: FastifyInstance) {}
+
+  /** Evaluate all enabled rules */
+  async evaluateAllRules(): Promise<{ evaluated: number; fired: number; resolved: number }> {
+    const enabledRules = await this.app.db
+      .select()
+      .from(alertRules)
+      .where(eq(alertRules.enabled, true));
+
+    let fired = 0;
+    let resolved = 0;
+
+    for (const rule of enabledRules) {
+      const result = await this.evaluateRule(rule);
+      if (result === "fired") fired++;
+      else if (result === "resolved") resolved++;
+    }
+
+    return { evaluated: enabledRules.length, fired, resolved };
+  }
+
+  /** Evaluate single rule */
+  async evaluateRule(rule: typeof alertRules.$inferSelect): Promise<"fired" | "resolved" | "unchanged"> {
+    const condition = this.parseCondition(rule.condition);
+    const isTriggered = await this.checkCondition(condition);
+
+    if (isTriggered) {
+      return await this.handleTriggeredCondition(rule);
+    } else {
+      return await this.handleResolvedCondition(rule);
+    }
+  }
+
+  /** Parse condition string into structured format */
+  private parseCondition(condition: string): ConditionParsed {
+    // metric_threshold: "cpu_percent > 85"
+    if (condition.includes("cpu_percent") || condition.includes("ram_percent") || condition.includes("disk_percent")) {
+      const match = condition.match(/(\w+)\s*([><=]+)\s*([\d.]+)/);
+      if (match) {
+        return {
+          type: "metric_threshold",
+          metric: match[1],
+          operator: match[2],
+          value: parseFloat(match[3]),
+          table: "metrics_system",
+        };
+      }
+    }
+
+    // absence: "no_heartbeat > 5m"
+    if (condition.includes("no_heartbeat") || condition.includes("absence")) {
+      const match = condition.match(/(\d+)m/);
+      return {
+        type: "absence",
+        timeWindow: match ? `${match[1]} minutes` : "5 minutes",
+      };
+    }
+
+    // count: "spam_reports > 3 in 1h"
+    if (condition.includes("in") && condition.includes("h")) {
+      const match = condition.match(/(\w+)\s*>\s*(\d+)\s*in\s*(\d+)h/);
+      if (match) {
+        return {
+          type: "count",
+          metric: match[1],
+          value: parseInt(match[2]),
+          timeWindow: `${match[3]} hours`,
+        };
+      }
+    }
+
+    // Default to metric threshold
+    return { type: "metric_threshold", metric: "cpu_percent", operator: ">", value: 85 };
+  }
+
+  /** Check if condition is currently true */
+  private async checkCondition(condition: ConditionParsed): Promise<boolean> {
+    switch (condition.type) {
+      case "metric_threshold":
+        return await this.checkMetricThreshold(condition);
+      case "absence":
+        return await this.checkAbsence(condition);
+      case "count":
+        return await this.checkCount(condition);
+      default:
+        return false;
+    }
+  }
+
+  /** Whitelist of allowed metric column names to prevent SQL injection */
+  private static readonly ALLOWED_METRICS = new Set([
+    "cpu_percent", "ram_percent", "disk_percent", "load_avg_1",
+    "load_avg_5", "load_avg_15", "net_in_bytes", "net_out_bytes",
+    "swap_percent", "iops_read", "iops_write",
+  ]);
+
+  /** Parse and validate interval string to prevent SQL injection */
+  private parseIntervalSafe(timeWindow: string): string {
+    const match = timeWindow.match(/^(\d+)\s*(minutes?|hours?|days?|seconds?)$/);
+    if (!match) return "5 minutes";
+    return `${parseInt(match[1])} ${match[2]}`;
+  }
+
+  /** Check metric threshold */
+  private async checkMetricThreshold(condition: ConditionParsed): Promise<boolean> {
+    if (!condition.metric || !condition.operator || condition.value === undefined) return false;
+
+    // Validate metric name against whitelist
+    if (!AlertEngineEvaluationService.ALLOWED_METRICS.has(condition.metric)) {
+      this.app.log.warn({ metric: condition.metric }, "Rejected unknown metric name in alert condition");
+      return false;
+    }
+
+    // Use parameterized query with validated column name via sql.identifier
+    const sql = this.app.sql;
+    const recentMetrics = await sql`
+      SELECT DISTINCT ON (node_id)
+        node_id, ${sql(condition.metric)}, time
+      FROM metrics_system
+      WHERE time >= NOW() - INTERVAL '2 minutes'
+      ORDER BY node_id, time DESC
+    `;
+
+    if (recentMetrics.length === 0) return false;
+
+    // Check if any node exceeds threshold
+    for (const metric of recentMetrics) {
+      const value = metric[condition.metric];
+      if (value !== null && this.compareValues(value, condition.operator, condition.value)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Check absence (no heartbeat) */
+  private async checkAbsence(condition: ConditionParsed): Promise<boolean> {
+    const interval = this.parseIntervalSafe(condition.timeWindow || "5 minutes");
+
+    const sql = this.app.sql;
+    const staleNodes = await sql`
+      SELECT id, hostname, last_seen
+      FROM nodes
+      WHERE status = 'active'
+        AND last_seen < NOW() - ${sql(interval)}::interval
+    `;
+
+    return staleNodes.length > 0;
+  }
+
+  /** Check event count in time window */
+  private async checkCount(condition: ConditionParsed): Promise<boolean> {
+    if (!condition.metric || condition.value === undefined) return false;
+
+    const interval = this.parseIntervalSafe(condition.timeWindow || "1 hour");
+
+    const sql = this.app.sql;
+    const counts = await sql`
+      SELECT COUNT(*) as count
+      FROM email_events
+      WHERE event_type = 'spam_report'
+        AND time >= NOW() - ${sql(interval)}::interval
+    `;
+
+    return counts[0]?.count > condition.value;
+  }
+
+  /** Compare values based on operator */
+  private compareValues(actual: number, operator: string, threshold: number): boolean {
+    switch (operator) {
+      case ">": return actual > threshold;
+      case ">=": return actual >= threshold;
+      case "<": return actual < threshold;
+      case "<=": return actual <= threshold;
+      case "==":
+      case "=": return actual === threshold;
+      default: return false;
+    }
+  }
+
+  /** Handle triggered condition (with duration and cooldown) */
+  private async handleTriggeredCondition(rule: typeof alertRules.$inferSelect): Promise<"fired" | "unchanged"> {
+    const redisKey = `alert:condition:${rule.id}`;
+    const firstTrueAt = await this.app.redis.get(redisKey);
+
+    if (!firstTrueAt) {
+      // First time condition is true — start tracking
+      await this.app.redis.set(redisKey, new Date().toISOString(), "EX", 3600); // 1 hour TTL
+      return "unchanged";
+    }
+
+    // Check if duration requirement met
+    const firstTrue = new Date(firstTrueAt);
+    const durationMs = this.parseDuration(rule.duration || "30s");
+    const elapsed = Date.now() - firstTrue.getTime();
+
+    if (elapsed < durationMs) {
+      return "unchanged"; // Not long enough yet
+    }
+
+    // Check cooldown period
+    const lastFired = await this.getLastFiredTime(rule.id);
+    if (lastFired) {
+      const cooldownMs = this.parseDuration(rule.cooldown || "30 minutes");
+      const sinceLastFired = Date.now() - lastFired.getTime();
+      if (sinceLastFired < cooldownMs) {
+        return "unchanged"; // Still in cooldown
+      }
+    }
+
+    // Fire alert
+    await this.fireAlert(rule);
+    await this.app.redis.del(redisKey); // Reset tracking
+    return "fired";
+  }
+
+  /** Handle resolved condition */
+  private async handleResolvedCondition(rule: typeof alertRules.$inferSelect): Promise<"resolved" | "unchanged"> {
+    const redisKey = `alert:condition:${rule.id}`;
+    await this.app.redis.del(redisKey); // Clear tracking
+
+    // Check for active alerts to resolve
+    const [activeAlert] = await this.app.db
+      .select()
+      .from(alertEvents)
+      .where(and(eq(alertEvents.ruleId, rule.id), eq(alertEvents.status, "firing")))
+      .orderBy(desc(alertEvents.firedAt))
+      .limit(1);
+
+    if (activeAlert) {
+      await this.resolveAlert(activeAlert.id);
+      return "resolved";
+    }
+
+    return "unchanged";
+  }
+
+  /** Fire new alert */
+  private async fireAlert(rule: typeof alertRules.$inferSelect): Promise<void> {
+    const [alertEvent] = await this.app.db
+      .insert(alertEvents)
+      .values({
+        ruleId: rule.id,
+        severity: rule.severity,
+        status: "firing",
+        message: `Alert: ${rule.name}`,
+        details: { condition: rule.condition, threshold: rule.threshold },
+        notified: false,
+      })
+      .returning();
+
+    // Emit Socket.IO event
+    this.app.io.to("alerts").emit("alert:fired", {
+      id: alertEvent.id,
+      ruleId: rule.id,
+      severity: rule.severity,
+      message: alertEvent.message,
+      timestamp: alertEvent.firedAt?.toISOString(),
+    });
+
+    this.app.log.warn({ ruleId: rule.id, alertId: alertEvent.id }, `Alert fired: ${rule.name}`);
+  }
+
+  /** Resolve active alert */
+  private async resolveAlert(alertId: number): Promise<void> {
+    await this.app.db
+      .update(alertEvents)
+      .set({ status: "resolved", resolvedAt: new Date() })
+      .where(eq(alertEvents.id, alertId));
+
+    // Emit Socket.IO event
+    this.app.io.to("alerts").emit("alert:resolved", {
+      id: alertId,
+      timestamp: new Date().toISOString(),
+    });
+
+    this.app.log.info({ alertId }, "Alert resolved");
+  }
+
+  /** Get last fired time for rule */
+  private async getLastFiredTime(ruleId: number): Promise<Date | null> {
+    const [lastAlert] = await this.app.db
+      .select()
+      .from(alertEvents)
+      .where(eq(alertEvents.ruleId, ruleId))
+      .orderBy(desc(alertEvents.firedAt))
+      .limit(1);
+
+    return lastAlert?.firedAt || null;
+  }
+
+  /** Parse duration string to milliseconds */
+  private parseDuration(duration: string): number {
+    const match = duration.match(/(\d+)\s*(s|m|h|d)/);
+    if (!match) return 30000; // Default 30s
+
+    const value = parseInt(match[1]);
+    const unit = match[2];
+
+    switch (unit) {
+      case "s": return value * 1000;
+      case "m": return value * 60 * 1000;
+      case "h": return value * 60 * 60 * 1000;
+      case "d": return value * 24 * 60 * 60 * 1000;
+      default: return 30000;
+    }
+  }
+}

@@ -1,0 +1,46 @@
+import {
+  pgTable, text, timestamp, doublePrecision, integer, smallint, index,
+} from "drizzle-orm/pg-core";
+
+/** Email events — one row per email delivery event */
+export const emailEvents = pgTable(
+  "email_events",
+  {
+    time: timestamp("time", { withTimezone: true, mode: "date" }).notNull(),
+    eventType: text("event_type").notNull(),
+    messageId: text("message_id"),
+    queueId: text("queue_id"),
+    fromAddress: text("from_address"),
+    fromUser: text("from_user"),
+    fromDomain: text("from_domain"),
+    toAddress: text("to_address"),
+    toDomain: text("to_domain"),
+    mtaNode: text("mta_node"),
+    sendingIp: text("sending_ip"),
+    sendingIpV6: text("sending_ip_v6"),
+    mxHost: text("mx_host"),
+    statusCode: smallint("status_code"),
+    statusMessage: text("status_message"),
+    deliveryTimeMs: integer("delivery_time_ms"),
+    queueTimeMs: integer("queue_time_ms"),
+    totalTimeMs: integer("total_time_ms"),
+    bounceType: text("bounce_type"),
+    bounceCategory: text("bounce_category"),
+    bounceMessage: text("bounce_message"),
+    messageSize: integer("message_size"),
+    dkimResult: text("dkim_result"),
+    spfResult: text("spf_result"),
+    dmarcResult: text("dmarc_result"),
+    spamScore: doublePrecision("spam_score"),
+    spamAction: text("spam_action"),
+  },
+  (table) => [
+    index("idx_email_from_domain").on(table.fromDomain, table.time),
+    index("idx_email_to_domain").on(table.toDomain, table.time),
+    index("idx_email_mta_node").on(table.mtaNode, table.time),
+    index("idx_email_sending_ip").on(table.sendingIp, table.time),
+    index("idx_email_from_user").on(table.fromUser, table.fromDomain, table.time),
+    index("idx_email_event_type").on(table.eventType, table.time),
+    index("idx_email_message_id").on(table.messageId, table.time),
+  ],
+);

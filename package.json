@@ -1,0 +1,40 @@
+{
+  "name": "tinomail-monitor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend,agent -c blue,green,yellow \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:agent\"",
+    "dev:backend": "npm run dev -w @tinomail/backend",
+    "dev:frontend": "npm run dev -w @tinomail/frontend",
+    "dev:agent": "npm run dev -w @tinomail/agent",
+    "build": "npm run build -w @tinomail/shared && concurrently \"npm run build:backend\" \"npm run build:frontend\" \"npm run build:agent\"",
+    "build:backend": "npm run build -w @tinomail/backend",
+    "build:frontend": "npm run build -w @tinomail/frontend",
+    "build:agent": "npm run build -w @tinomail/agent",
+    "build:shared": "npm run build -w @tinomail/shared",
+    "test": "concurrently \"npm run test:backend\" \"npm run test:frontend\"",
+    "test:backend": "npm run test -w @tinomail/backend",
+    "test:frontend": "npm run test -w @tinomail/frontend",
+    "lint": "eslint packages/*/src/**/*.ts packages/*/src/**/*.tsx",
+    "lint:fix": "eslint --fix packages/*/src/**/*.ts packages/*/src/**/*.tsx",
+    "format": "prettier --write \"packages/*/src/**/*.{ts,tsx,json,css}\"",
+    "db:migrate": "npm run migrate -w @tinomail/backend",
+    "db:seed": "npm run seed -w @tinomail/backend",
+    "db:seed:sample": "npm run seed:sample -w @tinomail/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.0",
+    "typescript": "^5.7.0",
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
