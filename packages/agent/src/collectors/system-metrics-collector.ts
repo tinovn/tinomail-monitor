@@ -24,8 +24,14 @@ export class SystemMetricsCollector {
         si.networkConnections(),
       ]);
 
-    // Calculate disk usage (main filesystem)
-    const mainDisk = disk[0] || { use: 0, available: 0 };
+    // Calculate disk usage — pick root "/" or largest real filesystem
+    const realDisks = disk.filter(
+      (d) => d.size > 0 && !d.fs.startsWith("tmpfs") && !d.fs.startsWith("devtmpfs") && !d.fs.startsWith("efivarfs"),
+    );
+    const mainDisk =
+      realDisks.find((d) => d.mount === "/") ||
+      realDisks.sort((a, b) => b.size - a.size)[0] ||
+      { use: 0, available: 0 };
     const diskPercent = mainDisk.use;
     const diskFreeBytes = mainDisk.available;
 

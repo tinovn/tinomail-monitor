@@ -16,6 +16,7 @@ import nodeHeatmapRoutes from "./routes/node/node-heatmap-routes.js";
 import metricsIngestionRoutes from "./routes/metrics/metrics-ingestion-routes.js";
 import metricsQueryRoutes from "./routes/metrics/metrics-query-routes.js";
 import dashboardMetricsRoutes from "./routes/metrics/dashboard-metrics-routes.js";
+import nodeMetricsRoutes from "./routes/metrics/node-metrics-routes.js";
 import ipRoutes from "./routes/ip/ip-routes.js";
 import ipWarmupRoutes from "./routes/ip/ip-warmup-routes.js";
 import ipPoolRoutes from "./routes/ip/ip-pool-routes.js";
@@ -110,6 +111,7 @@ export async function buildApp(config: ServerConfig) {
   await app.register(metricsIngestionRoutes, { prefix: "/api/v1/metrics" });
   await app.register(metricsQueryRoutes, { prefix: "/api/v1/metrics" });
   await app.register(dashboardMetricsRoutes, { prefix: "/api/v1/metrics" });
+  await app.register(nodeMetricsRoutes, { prefix: "/api/v1/metrics" });
   await app.register(ipRoutes, { prefix: "/api/v1/ips" });
   await app.register(ipWarmupRoutes, { prefix: "/api/v1/ips" });
   await app.register(ipPoolRoutes, { prefix: "/api/v1/ips" });
