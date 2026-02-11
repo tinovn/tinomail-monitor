@@ -18,6 +18,9 @@ const envSchema = z.object({
   JWT_SECRET: z.string().default("change-me-in-production"),
   JWT_EXPIRES_IN: z.string().default("24h"),
 
+  // Agent
+  AGENT_API_KEY: z.string().default("change-me-in-production"),
+
   // CORS
   CORS_ORIGIN: z.string().optional(),
 });

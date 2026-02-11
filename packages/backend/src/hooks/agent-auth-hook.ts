@@ -27,9 +27,9 @@ export async function agentAuthHook(request: FastifyRequest, reply: FastifyReply
     });
   }
 
-  // TODO: In production, validate against database of agent API keys
-  // For now, accept any non-empty key (development mode)
-  if (request.server.config.NODE_ENV === "production" && apiKey !== request.server.config.JWT_SECRET) {
+  // Validate agent API key
+  const validKey = request.server.config.AGENT_API_KEY;
+  if (request.server.config.NODE_ENV === "production" && apiKey !== validKey) {
     return reply.status(401).send({
       success: false,
       error: {
