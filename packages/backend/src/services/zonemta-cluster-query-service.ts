@@ -23,11 +23,13 @@ export class ZonemtaClusterQueryService {
       return JSON.parse(cached);
     }
 
-    // Get all ZoneMTA nodes
+    // Get nodes running ZoneMTA service (check role OR metadata.detectedServices)
     const mtaNodes = await this.app.db
       .select()
       .from(nodes)
-      .where(eq(nodes.role, "zonemta-outbound"));
+      .where(
+        sql`role = 'zonemta' OR metadata->'detectedServices' @> '"zonemta"'`
+      );
 
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
 
@@ -48,7 +50,7 @@ export class ZonemtaClusterQueryService {
         const emailStats = await this.app.db
           .select({
             sent: sql<number>`count(*)::int`,
-            bounced: sql<number>`count(*) filter (where event_type = 'bounce')::int`,
+            bounced: sql<number>`count(*) filter (where event_type = 'bounced')::int`,
           })
           .from(emailEvents)
           .where(
@@ -104,7 +106,7 @@ export class ZonemtaClusterQueryService {
         time: sql<Date>`time_bucket('1 hour', time)`,
         sent: sql<number>`count(*)::int`,
         delivered: sql<number>`count(*) filter (where event_type = 'delivered')::int`,
-        bounced: sql<number>`count(*) filter (where event_type = 'bounce')::int`,
+        bounced: sql<number>`count(*) filter (where event_type = 'bounced')::int`,
       })
       .from(emailEvents)
       .where(
@@ -214,7 +216,7 @@ export class ZonemtaClusterQueryService {
         const stats1h = await this.app.db
           .select({
             sent: sql<number>`count(*)::int`,
-            bounced: sql<number>`count(*) filter (where event_type = 'bounce')::int`,
+            bounced: sql<number>`count(*) filter (where event_type = 'bounced')::int`,
           })
           .from(emailEvents)
           .where(
@@ -303,7 +305,7 @@ export class ZonemtaClusterQueryService {
         destination: emailEvents.toDomain,
         sent: sql<number>`count(*)::int`,
         delivered: sql<number>`count(*) filter (where event_type = 'delivered')::int`,
-        bounced: sql<number>`count(*) filter (where event_type = 'bounce')::int`,
+        bounced: sql<number>`count(*) filter (where event_type = 'bounced')::int`,
         deferred: sql<number>`count(*) filter (where event_type = 'deferred')::int`,
         avgTime: sql<number>`avg(delivery_time_ms)`,
       })

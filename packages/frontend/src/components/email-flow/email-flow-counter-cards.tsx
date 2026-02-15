@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
+import { apiClient } from "@/lib/api-http-client";
 
 interface Counters {
   delivered: number;
@@ -16,7 +17,31 @@ export function EmailFlowCounterCards() {
     rejected: 0,
   });
 
+  // Fetch initial counters from email_events for last hour
+  const fetchInitialCounters = useCallback(async () => {
+    try {
+      const to = new Date();
+      const from = new Date(to.getTime() - 60 * 60 * 1000);
+      const data = await apiClient.get<Array<{ event_type: string; count: number }>>(
+        `/email/stats?from=${from.toISOString()}&to=${to.toISOString()}&groupBy=event_type`
+      );
+
+      const initial: Counters = { delivered: 0, bounced: 0, deferred: 0, rejected: 0 };
+      for (const row of data) {
+        const key = row.event_type as keyof Counters;
+        if (key in initial) {
+          initial[key] = Number(row.count) || 0;
+        }
+      }
+      setCounters(initial);
+    } catch {
+      // Silently fail — WebSocket will still update
+    }
+  }, []);
+
   useEffect(() => {
+    fetchInitialCounters();
+
     const socket = io("/", { path: "/socket.io" });
     socket.emit("join", "email-flow");
 
@@ -32,7 +57,7 @@ export function EmailFlowCounterCards() {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [fetchInitialCounters]);
 
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -72,32 +97,11 @@ interface CounterCardProps {
 }
 
 function CounterCard({ label, value, color, bgColor }: CounterCardProps) {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    const duration = 500;
-    const steps = 30;
-    const increment = (value - displayValue) / steps;
-    let currentStep = 0;
-
-    const interval = setInterval(() => {
-      currentStep++;
-      if (currentStep >= steps) {
-        setDisplayValue(value);
-        clearInterval(interval);
-      } else {
-        setDisplayValue((prev) => prev + increment);
-      }
-    }, duration / steps);
-
-    return () => clearInterval(interval);
-  }, [value, displayValue]);
-
   return (
     <div className={`rounded-md border border-border ${bgColor} p-2`}>
       <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
       <div className={`mt-1 text-lg font-mono-data font-bold ${color}`}>
-        {Math.round(displayValue).toLocaleString()}
+        {value.toLocaleString()}
       </div>
       <div className="text-[10px] text-muted-foreground">last hour</div>
     </div>

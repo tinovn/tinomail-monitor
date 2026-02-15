@@ -1,0 +1,19 @@
+# ZoneMTA plugin: tino-zonemta-delivery-tracker
+# Captures delivery events and sends to TinoMail Monitor backend
+#
+# Install:
+#   1. Copy this file to /etc/zone-mta/plugins/tino-zonemta-delivery-tracker.toml
+#   2. Copy index.js to /opt/zone-mta/plugins/tino-zonemta-delivery-tracker/index.js
+#   3. Restart zone-mta: systemctl restart zone-mta
+
+["tino-zonemta-delivery-tracker"]
+enabled = "sender"
+
+# Backend monitor server URL
+serverUrl = "https://mail-monitor.tino.vn"
+
+# Agent API key for authentication
+apiKey = "CHANGE_ME"
+
+# Node identifier — unique per ZoneMTA node (e.g., zonemta-01, zonemta-02)
+nodeId = "zonemta-01"
