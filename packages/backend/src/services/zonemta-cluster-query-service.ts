@@ -158,10 +158,10 @@ export class ZonemtaClusterQueryService {
     const latestMetrics = await this.app.db.execute<{
       cpu_percent: number;
       ram_percent: number;
-      net_out_bytes: number;
-      net_in_bytes: number;
+      net_tx_bytes_sec: number;
+      net_rx_bytes_sec: number;
     }>(
-      sql`SELECT cpu_percent, ram_percent, net_out_bytes, net_in_bytes
+      sql`SELECT cpu_percent, ram_percent, net_tx_bytes_sec, net_rx_bytes_sec
           FROM metrics_system
           WHERE node_id = ${nodeId}
           ORDER BY time DESC LIMIT 1`
@@ -183,8 +183,8 @@ export class ZonemtaClusterQueryService {
       resources: {
         cpuUsage: latest?.cpu_percent || 0,
         memUsage: latest?.ram_percent || 0,
-        networkSent: latest?.net_out_bytes ? latest.net_out_bytes / 1024 / 1024 : 0,
-        networkRecv: latest?.net_in_bytes ? latest.net_in_bytes / 1024 / 1024 : 0,
+        networkSent: latest?.net_tx_bytes_sec ? latest.net_tx_bytes_sec / 1024 / 1024 : 0,
+        networkRecv: latest?.net_rx_bytes_sec ? latest.net_rx_bytes_sec / 1024 / 1024 : 0,
       },
     };
   }
