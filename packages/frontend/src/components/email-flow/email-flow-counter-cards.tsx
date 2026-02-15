@@ -22,13 +22,13 @@ export function EmailFlowCounterCards() {
     try {
       const to = new Date();
       const from = new Date(to.getTime() - 60 * 60 * 1000);
-      const data = await apiClient.get<Array<{ event_type: string; count: number }>>(
+      const data = await apiClient.get<Array<{ group: string; count: string }>>(
         `/email/stats?from=${from.toISOString()}&to=${to.toISOString()}&groupBy=event_type`
       );
 
       const initial: Counters = { delivered: 0, bounced: 0, deferred: 0, rejected: 0 };
       for (const row of data) {
-        const key = row.event_type as keyof Counters;
+        const key = row.group as keyof Counters;
         if (key in initial) {
           initial[key] = Number(row.count) || 0;
         }
