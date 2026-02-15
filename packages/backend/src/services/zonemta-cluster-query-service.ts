@@ -146,10 +146,11 @@ export class ZonemtaClusterQueryService {
     });
 
     // Queue trend from metrics_zonemta hypertable
+    const startTimeIso = startTime.toISOString();
     const queueTrend = await this.app.db.execute<{ time: Date; size: number }>(
       sql`SELECT time_bucket('1 hour', time) AS time, avg(queue_size)::int AS size
           FROM metrics_zonemta
-          WHERE node_id = ${nodeId} AND time >= ${startTime}
+          WHERE node_id = ${nodeId} AND time >= ${startTimeIso}::timestamptz
           GROUP BY 1 ORDER BY 1`
     );
 
