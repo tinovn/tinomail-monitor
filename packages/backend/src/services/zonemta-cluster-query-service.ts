@@ -145,19 +145,27 @@ export class ZonemtaClusterQueryService {
       }
     });
 
-    // Queue trend (mock data - would come from metrics_zonemta in real implementation)
-    const queueTrend = Array.from({ length: 24 }, (_, i) => ({
-      time: new Date(Date.now() - (24 - i) * 60 * 60 * 1000),
-      size: Math.floor(Math.random() * 1000), // Mock data
-    }));
+    // Queue trend from metrics_zonemta hypertable
+    const queueTrend = await this.app.db.execute<{ time: Date; size: number }>(
+      sql`SELECT time_bucket('1 hour', time) AS time, avg(queue_size)::int AS size
+          FROM metrics_zonemta
+          WHERE node_id = ${nodeId} AND time >= ${startTime}
+          GROUP BY 1 ORDER BY 1`
+    );
 
-    // Resource usage (from node metadata)
-    const metadata = node[0].metadata as {
-      cpuUsage?: number;
-      memUsage?: number;
-      networkSent?: number;
-      networkRecv?: number;
-    };
+    // Resource usage from latest metrics_system record
+    const latestMetrics = await this.app.db.execute<{
+      cpu_percent: number;
+      ram_percent: number;
+      net_out_bytes: number;
+      net_in_bytes: number;
+    }>(
+      sql`SELECT cpu_percent, ram_percent, net_out_bytes, net_in_bytes
+          FROM metrics_system
+          WHERE node_id = ${nodeId}
+          ORDER BY time DESC LIMIT 1`
+    );
+    const latest = latestMetrics[0];
 
     return {
       throughput: throughput.map((t) => ({
@@ -167,12 +175,15 @@ export class ZonemtaClusterQueryService {
         bounced: t.bounced,
       })),
       deliveryStatus: statusMap,
-      queueTrend,
+      queueTrend: queueTrend.map((r) => ({
+        time: r.time,
+        size: r.size,
+      })),
       resources: {
-        cpuUsage: metadata?.cpuUsage || 0,
-        memUsage: metadata?.memUsage || 0,
-        networkSent: metadata?.networkSent || 0,
-        networkRecv: metadata?.networkRecv || 0,
+        cpuUsage: latest?.cpu_percent || 0,
+        memUsage: latest?.ram_percent || 0,
+        networkSent: latest?.net_out_bytes ? latest.net_out_bytes / 1024 / 1024 : 0,
+        networkRecv: latest?.net_in_bytes ? latest.net_in_bytes / 1024 / 1024 : 0,
       },
     };
   }
