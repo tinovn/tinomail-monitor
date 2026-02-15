@@ -1,10 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { apiClient } from "@/lib/api-http-client";
 
 interface NodeThroughput {
   time: string;
   [node: string]: number | string;
+}
+
+interface NodeThroughputRow {
+  time: string;
+  event_type: string;
+  group_value?: string;
+  count: number;
 }
 
 export function OutboundByNodeMultiChart() {
@@ -12,35 +20,30 @@ export function OutboundByNodeMultiChart() {
   const [nodes, setNodes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchNodeThroughput();
-    const interval = setInterval(fetchNodeThroughput, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchNodeThroughput = async () => {
+  const fetchNodeThroughput = useCallback(async () => {
     try {
       const to = new Date();
       const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
 
-      const response = await fetch(
-        `/api/v1/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}&by=node`
+      const result = await apiClient.get<NodeThroughputRow[]>(
+        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}&by=node`
       );
-      const result = await response.json();
 
-      if (result.success) {
-        const { data: transformedData, nodes: nodeList } = transformNodeData(
-          result.data
-        );
-        setData(transformedData);
-        setNodes(nodeList);
-      }
+      const { data: transformedData, nodes: nodeList } = transformNodeData(result);
+      setData(transformedData);
+      setNodes(nodeList);
     } catch (error) {
       console.error("Failed to fetch node throughput:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchNodeThroughput();
+    const interval = setInterval(fetchNodeThroughput, 30000);
+    return () => clearInterval(interval);
+  }, [fetchNodeThroughput]);
 
   const transformNodeData = (
     rawData: any[]
@@ -50,7 +53,7 @@ export function OutboundByNodeMultiChart() {
 
     for (const row of rawData) {
       const time = new Date(row.time).toISOString();
-      const node = row.mta_node || "unknown";
+      const node = row.group_value || "unknown";
       nodeSet.add(node);
 
       if (!grouped.has(time)) {

@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { apiClient } from "@/lib/api-http-client";
 
 interface ThroughputData {
   time: string;
@@ -10,35 +11,38 @@ interface ThroughputData {
   rejected: number;
 }
 
+interface ThroughputRow {
+  time: string;
+  event_type: string;
+  count: number;
+}
+
 export function OutboundThroughputStackedChart() {
   const [data, setData] = useState<ThroughputData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchThroughputData();
-    const interval = setInterval(fetchThroughputData, 30000); // 30s refresh
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchThroughputData = async () => {
+  const fetchThroughputData = useCallback(async () => {
     try {
       const to = new Date();
       const from = new Date(to.getTime() - 24 * 60 * 60 * 1000); // 24h ago
 
-      const response = await fetch(
-        `/api/v1/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}`
+      const result = await apiClient.get<ThroughputRow[]>(
+        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}`
       );
-      const result = await response.json();
 
-      if (result.success) {
-        setData(transformData(result.data));
-      }
+      setData(transformData(result));
     } catch (error) {
       console.error("Failed to fetch throughput data:", error);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchThroughputData();
+    const interval = setInterval(fetchThroughputData, 30000); // 30s refresh
+    return () => clearInterval(interval);
+  }, [fetchThroughputData]);
 
   const transformData = (rawData: any[]): ThroughputData[] => {
     const grouped = new Map<string, ThroughputData>();

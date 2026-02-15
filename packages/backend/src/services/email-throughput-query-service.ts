@@ -15,6 +15,7 @@ export class EmailThroughputQueryService {
   /**
    * Query email throughput with automatic resolution based on time range
    * <6h -> 5min, 6h-7d -> 1h, >7d -> daily
+   * Falls back to raw email_events if aggregate is empty (data too recent)
    */
   async getThroughput(params: {
     from: Date;
@@ -25,12 +26,26 @@ export class EmailThroughputQueryService {
     const toIso = params.to.toISOString();
     const rangeHours = (params.to.getTime() - params.from.getTime()) / (1000 * 60 * 60);
 
+    let result;
     if (rangeHours < 6) {
-      return this.queryAggregate5m(fromIso, toIso, params.groupBy);
+      result = await this.queryAggregate5m(fromIso, toIso, params.groupBy);
     } else if (rangeHours <= 168) {
-      return this.queryAggregate1h(fromIso, toIso, params.groupBy);
+      result = await this.queryAggregate1h(fromIso, toIso, params.groupBy);
+      // Fall back to 5m aggregate if 1h is empty (data too recent to materialize)
+      if (result.length === 0) {
+        result = await this.queryAggregate5m(fromIso, toIso, params.groupBy);
+      }
+    } else {
+      result = await this.queryAggregateDaily(fromIso, toIso, params.groupBy);
+      // Fall back through aggregates if empty
+      if (result.length === 0) {
+        result = await this.queryAggregate1h(fromIso, toIso, params.groupBy);
+      }
+      if (result.length === 0) {
+        result = await this.queryAggregate5m(fromIso, toIso, params.groupBy);
+      }
     }
-    return this.queryAggregateDaily(fromIso, toIso, params.groupBy);
+    return result;
   }
 
   /** Get email stats grouped by dimension */
