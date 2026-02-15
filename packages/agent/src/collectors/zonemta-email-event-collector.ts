@@ -109,11 +109,9 @@ export class ZonemtaEmailEventCollector {
     this.changeStream.on("change", (change: any) => {
       // Reset reconnect counter on successful data — stream is healthy
       this.reconnectAttempts = 0;
-      try {
-        this.handleChange(change);
-      } catch (err) {
+      this.handleChange(change).catch((err) => {
         console.error("[ZoneMTA Events] Error handling change:", err);
-      }
+      });
     });
 
     this.changeStream.on("error", (err: Error & { code?: number }) => {
@@ -127,7 +125,7 @@ export class ZonemtaEmailEventCollector {
     });
   }
 
-  private handleChange(change: Record<string, unknown>): void {
+  private async handleChange(change: Record<string, unknown>): Promise<void> {
     const fullDocument = change.fullDocument as Record<string, unknown> | null;
     if (!fullDocument) return;
 
@@ -135,7 +133,10 @@ export class ZonemtaEmailEventCollector {
     const eventType = STATUS_MAP[status];
     if (!eventType) return;
 
-    const event = this.mapToEmailEvent(fullDocument, eventType);
+    // zone-queue docs don't have returnPath/from — lookup mail.files by queue id
+    const fromAddress = await this.lookupSender(fullDocument.id as string);
+
+    const event = this.mapToEmailEvent(fullDocument, eventType, fromAddress);
     this.eventBuffer.push(event);
 
     // Store resume token from the change event
@@ -148,9 +149,39 @@ export class ZonemtaEmailEventCollector {
     }
   }
 
+  /** Lookup sender address from mail.files GridFS metadata by queue id */
+  private async lookupSender(queueId?: string): Promise<string | undefined> {
+    if (!queueId || !this.client) return undefined;
+    try {
+      const mailFiles = this.client.db("zone-mta").collection("mail.files");
+      const doc = await mailFiles.findOne(
+        { "metadata.data.id": queueId },
+        { projection: { "metadata.data.from": 1, "metadata.data.parsedEnvelope.from": 1 } }
+      );
+      if (!doc) return undefined;
+
+      const data = (doc.metadata as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+      if (!data) return undefined;
+
+      // Prefer envelope from, fallback to parsedEnvelope.from (for DSN/bounces where from="")
+      const envelopeFrom = data.from as string | undefined;
+      if (envelopeFrom && envelopeFrom.includes("@")) return envelopeFrom;
+
+      const parsed = data.parsedEnvelope as Record<string, unknown> | undefined;
+      const parsedFrom = parsed?.from as string | undefined;
+      if (parsedFrom && parsedFrom.includes("@")) return parsedFrom;
+
+      return undefined;
+    } catch (err) {
+      console.warn("[ZoneMTA Events] Failed to lookup sender for queue id", queueId, err);
+      return undefined;
+    }
+  }
+
   private mapToEmailEvent(
     doc: Record<string, unknown>,
-    eventType: string
+    eventType: string,
+    lookedUpFrom?: string
   ): EmailEventPayload {
     const last = doc.last as Date | undefined;
     const first = doc.first as Date | undefined;
@@ -166,9 +197,10 @@ export class ZonemtaEmailEventCollector {
       if (deliveryTimeMs < 0) deliveryTimeMs = undefined;
     }
 
-    // Validate fromAddress — backend requires valid email format
+    // Use looked-up sender from mail.files, fallback to doc.returnPath
     const returnPath = doc.returnPath as string | undefined;
-    const fromAddress = returnPath && returnPath.includes("@") ? returnPath : undefined;
+    const fromAddress = lookedUpFrom
+      ?? (returnPath && returnPath.includes("@") ? returnPath : undefined);
 
     // Validate toAddress
     const recipient = doc.recipient as string | undefined;
