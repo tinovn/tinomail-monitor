@@ -3,6 +3,7 @@ export type {
   ProcessHealth,
   SystemMetrics,
   MongodbMetrics,
+  MongodbReplEvent,
   RedisMetrics,
   ZonemtaMetrics,
   RspamdMetrics,

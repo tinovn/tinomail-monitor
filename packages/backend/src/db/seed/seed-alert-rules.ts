@@ -10,6 +10,9 @@ export const ALERT_RULES_SEED_DATA = [
   { name: "Queue Overflow", severity: "critical", condition: "queue_size > threshold", threshold: 50000, duration: "5 minutes", channels: ["telegram"], description: "MTA queue exceeds 50K for 5 minutes" },
   { name: "MongoDB No Primary", severity: "critical", condition: "mongodb_no_primary", threshold: 1, channels: ["telegram"], description: "No MongoDB node reporting PRIMARY role" },
   { name: "MongoDB Repl Lag Critical", severity: "critical", condition: "repl_lag_seconds > threshold", threshold: 30, duration: "2 minutes", channels: ["telegram"], description: "MongoDB replication lag above 30s for 2 minutes" },
+  { name: "MongoDB Cache Timeout", severity: "critical", condition: "wt_cache_timeout_count > 0", threshold: 0, duration: "1 minute", channels: ["telegram"], description: "WiredTiger cache operations timing out — cache choke" },
+  { name: "MongoDB Oplog Window Critical", severity: "critical", condition: "oplog_window_hours < 12", threshold: 12, channels: ["telegram"], description: "MongoDB oplog window below 12 hours" },
+  { name: "MongoDB Ops Pipeline Dead", severity: "critical", condition: "ops_total_drop_zero", threshold: 0, duration: "30s", channels: ["telegram"], description: "MongoDB operations dropped to 0 while connections active — mail pipeline may be dead" },
 
   // Warning — needs review
   { name: "CPU Warning", severity: "warning", condition: "cpu_percent > threshold", threshold: 80, duration: "10 minutes", channels: ["telegram"], description: "CPU above 80% for 10 minutes" },
@@ -19,6 +22,7 @@ export const ALERT_RULES_SEED_DATA = [
   { name: "IP Blacklisted (High)", severity: "warning", condition: "ip_blacklisted_high", threshold: 1, channels: ["telegram"], description: "IP listed on high-tier blacklist" },
   { name: "Delivery Time Slow", severity: "warning", condition: "avg_delivery_ms > threshold", threshold: 30000, duration: "10 minutes", channels: ["telegram"], description: "Avg delivery time above 30s for 10 minutes" },
   { name: "MongoDB Repl Lag", severity: "warning", condition: "repl_lag_seconds > threshold", threshold: 10, duration: "5 minutes", channels: ["telegram"], description: "MongoDB replication lag above 10s" },
+  { name: "MongoDB Cache Usage High", severity: "warning", condition: "wt_cache_percent_high > 90", threshold: 90, duration: "5 minutes", channels: ["telegram"], description: "WiredTiger cache usage above 90% of max configured" },
   { name: "Queue Growing", severity: "warning", condition: "queue_size > threshold", threshold: 10000, duration: "15 minutes", channels: ["telegram"], description: "MTA queue above 10K for 15 minutes" },
   { name: "Redis Memory High", severity: "warning", condition: "redis_memory_percent > threshold", threshold: 80, channels: ["telegram"], description: "Redis memory usage above 80%" },
   { name: "High TCP Time-Wait", severity: "warning", condition: "tcp_time_wait > threshold", threshold: 5000, duration: "5 minutes", channels: ["telegram"], description: "TCP TIME_WAIT above 5000" },

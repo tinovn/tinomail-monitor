@@ -7,6 +7,7 @@ import {
   redisMetricsSchema,
   zonemtaMetricsSchema,
   rspamdMetricsSchema,
+  mongodbReplEventsSchema,
 } from "../../schemas/metrics-validation-schemas.js";
 import { agentAuthHook } from "../../hooks/agent-auth-hook.js";
 
@@ -92,6 +93,21 @@ export default async function metricsIngestionRoutes(app: FastifyInstance) {
     const data = remapTimeField(extractPayloadData(request.body));
     const body = rspamdMetricsSchema.parse(data);
     await metricsService.ingestRspamdMetrics(body);
+
+    const response: ApiResponse<{ received: boolean }> = {
+      success: true,
+      data: { received: true },
+    };
+    reply.status(201).send(response);
+  });
+
+  // POST /api/v1/metrics/mongodb-events
+  app.post("/mongodb-events", { onRequest: [agentAuthHook] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const data = extractPayloadData(request.body);
+    const eventsArray = Array.isArray(data) ? data : [data];
+    // Remap time → timestamp for each event
+    const body = mongodbReplEventsSchema.parse(eventsArray.map(remapTimeField));
+    await metricsService.ingestMongodbReplEvents(body);
 
     const response: ApiResponse<{ received: boolean }> = {
       success: true,

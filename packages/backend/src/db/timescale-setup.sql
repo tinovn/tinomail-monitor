@@ -10,6 +10,25 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 
 SELECT create_hypertable('metrics_system', 'time', chunk_time_interval => INTERVAL '1 hour', if_not_exists => TRUE);
 SELECT create_hypertable('metrics_mongodb', 'time', chunk_time_interval => INTERVAL '1 hour', if_not_exists => TRUE);
+
+-- New columns for metrics_mongodb (safe: ADD COLUMN IF NOT EXISTS)
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS wt_cache_dirty_bytes BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS wt_cache_timeout_count BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS wt_eviction_calls BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS conn_app_imap INTEGER;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS conn_app_smtp INTEGER;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS conn_app_internal INTEGER;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS conn_app_monitoring INTEGER;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS conn_app_other INTEGER;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS gridfs_messages_bytes BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS gridfs_attach_files_bytes BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS gridfs_attach_chunks_bytes BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS gridfs_storage_files_bytes BIGINT;
+ALTER TABLE metrics_mongodb ADD COLUMN IF NOT EXISTS gridfs_storage_chunks_bytes BIGINT;
+
+-- Replica set events hypertable
+SELECT create_hypertable('mongodb_repl_events', 'time', chunk_time_interval => INTERVAL '1 day', if_not_exists => TRUE);
+
 SELECT create_hypertable('metrics_redis', 'time', chunk_time_interval => INTERVAL '1 hour', if_not_exists => TRUE);
 SELECT create_hypertable('metrics_zonemta', 'time', chunk_time_interval => INTERVAL '1 hour', if_not_exists => TRUE);
 SELECT create_hypertable('metrics_rspamd', 'time', chunk_time_interval => INTERVAL '1 hour', if_not_exists => TRUE);
@@ -102,7 +121,15 @@ SELECT
   MAX(storage_size_bytes) AS storage_size_bytes,
   AVG(oplog_window_hours) AS oplog_window_hours,
   AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
-  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes,
+  AVG(wt_cache_dirty_bytes) AS wt_cache_dirty_bytes,
+  SUM(wt_cache_timeout_count) AS wt_cache_timeout_count,
+  SUM(wt_eviction_calls) AS wt_eviction_calls,
+  MAX(gridfs_messages_bytes) AS gridfs_messages_bytes,
+  MAX(gridfs_attach_files_bytes) AS gridfs_attach_files_bytes,
+  MAX(gridfs_attach_chunks_bytes) AS gridfs_attach_chunks_bytes,
+  MAX(gridfs_storage_files_bytes) AS gridfs_storage_files_bytes,
+  MAX(gridfs_storage_chunks_bytes) AS gridfs_storage_chunks_bytes
 FROM metrics_mongodb
 GROUP BY bucket, node_id
 WITH NO DATA;
@@ -129,7 +156,15 @@ SELECT
   MAX(storage_size_bytes) AS storage_size_bytes,
   AVG(oplog_window_hours) AS oplog_window_hours,
   AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
-  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes,
+  AVG(wt_cache_dirty_bytes) AS wt_cache_dirty_bytes,
+  SUM(wt_cache_timeout_count) AS wt_cache_timeout_count,
+  SUM(wt_eviction_calls) AS wt_eviction_calls,
+  MAX(gridfs_messages_bytes) AS gridfs_messages_bytes,
+  MAX(gridfs_attach_files_bytes) AS gridfs_attach_files_bytes,
+  MAX(gridfs_attach_chunks_bytes) AS gridfs_attach_chunks_bytes,
+  MAX(gridfs_storage_files_bytes) AS gridfs_storage_files_bytes,
+  MAX(gridfs_storage_chunks_bytes) AS gridfs_storage_chunks_bytes
 FROM metrics_mongodb
 GROUP BY bucket, node_id
 WITH NO DATA;
@@ -156,7 +191,15 @@ SELECT
   MAX(storage_size_bytes) AS storage_size_bytes,
   AVG(oplog_window_hours) AS oplog_window_hours,
   AVG(wt_cache_used_bytes) AS wt_cache_used_bytes,
-  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes
+  AVG(wt_cache_max_bytes) AS wt_cache_max_bytes,
+  AVG(wt_cache_dirty_bytes) AS wt_cache_dirty_bytes,
+  SUM(wt_cache_timeout_count) AS wt_cache_timeout_count,
+  SUM(wt_eviction_calls) AS wt_eviction_calls,
+  MAX(gridfs_messages_bytes) AS gridfs_messages_bytes,
+  MAX(gridfs_attach_files_bytes) AS gridfs_attach_files_bytes,
+  MAX(gridfs_attach_chunks_bytes) AS gridfs_attach_chunks_bytes,
+  MAX(gridfs_storage_files_bytes) AS gridfs_storage_files_bytes,
+  MAX(gridfs_storage_chunks_bytes) AS gridfs_storage_chunks_bytes
 FROM metrics_mongodb
 GROUP BY bucket, node_id
 WITH NO DATA;
@@ -207,6 +250,7 @@ SELECT add_continuous_aggregate_policy('email_stats_daily',
 
 SELECT add_retention_policy('metrics_system', INTERVAL '90 days', if_not_exists => TRUE);
 SELECT add_retention_policy('metrics_mongodb', INTERVAL '90 days', if_not_exists => TRUE);
+SELECT add_retention_policy('mongodb_repl_events', INTERVAL '365 days', if_not_exists => TRUE);
 SELECT add_retention_policy('metrics_redis', INTERVAL '90 days', if_not_exists => TRUE);
 SELECT add_retention_policy('metrics_zonemta', INTERVAL '90 days', if_not_exists => TRUE);
 SELECT add_retention_policy('metrics_rspamd', INTERVAL '90 days', if_not_exists => TRUE);
@@ -230,6 +274,13 @@ ALTER TABLE metrics_mongodb SET (
   timescaledb.compress_orderby = 'time DESC'
 );
 SELECT add_compression_policy('metrics_mongodb', INTERVAL '7 days', if_not_exists => TRUE);
+
+ALTER TABLE mongodb_repl_events SET (
+  timescaledb.compress,
+  timescaledb.compress_segmentby = 'node_id',
+  timescaledb.compress_orderby = 'time DESC'
+);
+SELECT add_compression_policy('mongodb_repl_events', INTERVAL '7 days', if_not_exists => TRUE);
 
 ALTER TABLE metrics_redis SET (
   timescaledb.compress,

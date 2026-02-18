@@ -1,5 +1,16 @@
-import type { MongodbMetrics } from "@tinomail/shared";
+import type { MongodbMetrics, MongodbReplEvent } from "@tinomail/shared";
 import { MongoClient } from "mongodb";
+import {
+  extractWiredTigerPressure,
+  type ServerStatus,
+} from "./mongodb-wiredtiger-pressure-collector.js";
+import { collectConnectionBreakdown } from "./mongodb-connection-source-breakdown-collector.js";
+import { collectGridfsBreakdown } from "./mongodb-gridfs-collection-size-collector.js";
+import { MongodbReplEventDetector } from "./mongodb-repl-event-detector.js";
+import {
+  getOplogWindow,
+  getAggregatedDbStats,
+} from "./mongodb-member-connection-and-oplog-helpers.js";
 
 interface ReplicaSetMember {
   name: string;
@@ -13,37 +24,10 @@ interface ReplicaSetStatus {
   date: Date;
 }
 
-interface ServerStatus {
-  connections: { current: number; available: number };
-  opcounters: {
-    insert: number;
-    query: number;
-    update: number;
-    delete: number;
-    command: number;
-  };
-  wiredTiger?: {
-    cache: {
-      "bytes currently in the cache": number;
-      "maximum bytes configured": number;
-    };
-  };
-}
-
-interface DbStats {
-  dataSize: number;
-  indexSize: number;
-  storageSize: number;
-}
-
-interface OplogStats {
-  firstTs: Date | null;
-  lastTs: Date | null;
-}
-
 export class MongodbMetricsCollector {
   private primaryClient: MongoClient | null = null;
   private memberClients: Map<string, MongoClient> = new Map();
+  private eventDetector = new MongodbReplEventDetector();
 
   constructor(private mongoUri: string) {}
 
@@ -61,58 +45,55 @@ export class MongodbMetricsCollector {
     }
   }
 
-  async collectAll(): Promise<MongodbMetrics[]> {
-    if (!this.primaryClient) {
-      throw new Error("MongoDB client not connected");
-    }
+  /** Collect metrics + replica set events in a single pass. */
+  async collectAllWithEvents(): Promise<{ metrics: MongodbMetrics[]; events: MongodbReplEvent[] }> {
+    if (!this.primaryClient) throw new Error("MongoDB client not connected");
 
-    const results: MongodbMetrics[] = [];
+    const metrics: MongodbMetrics[] = [];
     const now = new Date();
+    const admin = this.primaryClient.db("admin");
+    const rsStatus = (await admin.command({ replSetGetStatus: 1 })) as ReplicaSetStatus;
 
-    try {
-      // Get replica set status from primary
-      const admin = this.primaryClient.db("admin");
-      const rsStatus = (await admin.command({
-        replSetGetStatus: 1,
-      })) as ReplicaSetStatus;
+    const primaryMember = rsStatus.members.find((m) => m.stateStr === "PRIMARY");
+    const primaryOptime = primaryMember?.optimeDate ?? rsStatus.date;
 
-      // Find primary member for optime reference
-      const primaryMember = rsStatus.members.find(
-        (m) => m.stateStr === "PRIMARY"
-      );
-      const primaryOptime = primaryMember?.optimeDate || rsStatus.date;
-
-      // Collect metrics for each member
-      for (const member of rsStatus.members) {
-        try {
-          const memberMetrics = await this.collectMemberMetrics(
-            member,
-            primaryOptime,
-            now
-          );
-          results.push(memberMetrics);
-        } catch (error) {
-          const nodeId = this.extractNodeId(member.name);
-          console.warn(
-            `[MongoDB Collector] Failed to collect metrics for ${nodeId}:`,
-            (error as Error).message
-          );
-          // Continue collecting from other members
-        }
+    for (const member of rsStatus.members) {
+      try {
+        metrics.push(await this.collectMemberMetrics(member, primaryOptime, now));
+      } catch (error) {
+        console.warn(
+          `[MongoDB Collector] Failed for ${this.extractNodeId(member.name)}:`,
+          (error as Error).message
+        );
       }
-
-      console.info(
-        `[MongoDB Collector] Collected metrics from ${results.length}/${rsStatus.members.length} members`
-      );
-    } catch (error) {
-      console.error(
-        "[MongoDB Collector] Failed to get replica set status:",
-        error
-      );
-      throw error;
     }
 
-    return results;
+    // Enrich PRIMARY entry with connection breakdown + GridFS sizes
+    const primaryEntry = metrics.find((m) => m.role === "primary");
+    if (primaryEntry && this.primaryClient) {
+      const [connBreakdown, gridfsBreakdown] = await Promise.all([
+        collectConnectionBreakdown(this.primaryClient),
+        collectGridfsBreakdown(this.primaryClient),
+      ]);
+      Object.assign(primaryEntry, connBreakdown, gridfsBreakdown);
+    }
+
+    const memberSnapshots = rsStatus.members.map((m) => ({
+      nodeId: this.extractNodeId(m.name),
+      stateStr: m.stateStr,
+    }));
+    const events = this.eventDetector.detectEvents(memberSnapshots);
+
+    console.info(
+      `[MongoDB Collector] ${metrics.length}/${rsStatus.members.length} members, ${events.length} events`
+    );
+    return { metrics, events };
+  }
+
+  /** Legacy: metrics only. */
+  async collectAll(): Promise<MongodbMetrics[]> {
+    const { metrics } = await this.collectAllWithEvents();
+    return metrics;
   }
 
   private async collectMemberMetrics(
@@ -123,11 +104,9 @@ export class MongodbMetricsCollector {
     const nodeId = this.extractNodeId(member.name);
     const isPrimary = member.stateStr === "PRIMARY";
 
-    // Connect to member if not already connected
     let client = this.memberClients.get(member.name);
     if (!client) {
-      const memberUri = this.buildMemberUri(member.name);
-      client = new MongoClient(memberUri, {
+      client = new MongoClient(this.buildMemberUri(member.name), {
         serverSelectionTimeoutMS: 5000,
         connectTimeoutMS: 5000,
         directConnection: true,
@@ -136,40 +115,26 @@ export class MongodbMetricsCollector {
       this.memberClients.set(member.name, client);
     }
 
-    const admin = client.db("admin");
+    const serverStatus = (await client.db("admin").command({ serverStatus: 1 })) as ServerStatus;
 
-    // Collect server status
-    const serverStatus = (await admin.command({
-      serverStatus: 1,
-    })) as ServerStatus;
+    const replLagSeconds =
+      !isPrimary && member.optimeDate
+        ? Math.max(0, Math.round((primaryOptime.getTime() - member.optimeDate.getTime()) / 1000))
+        : null;
 
-    // Calculate replication lag
-    let replLagSeconds: number | null = null;
-    if (!isPrimary && member.optimeDate) {
-      const lagMs = primaryOptime.getTime() - member.optimeDate.getTime();
-      replLagSeconds = Math.max(0, Math.round(lagMs / 1000));
-    }
-
-    // Collect oplog window (only on PRIMARY)
     let oplogWindowHours: number | null = null;
     if (isPrimary) {
-      const oplogStats = await this.getOplogWindow(client);
-      if (oplogStats.firstTs && oplogStats.lastTs) {
-        const windowMs =
-          oplogStats.lastTs.getTime() - oplogStats.firstTs.getTime();
-        oplogWindowHours = Math.round((windowMs / (1000 * 60 * 60)) * 100) / 100;
+      const oplog = await getOplogWindow(client);
+      if (oplog.firstTs && oplog.lastTs) {
+        oplogWindowHours =
+          Math.round(((oplog.lastTs.getTime() - oplog.firstTs.getTime()) / 3_600_000) * 100) / 100;
       }
     }
 
-    // Aggregate database sizes (wildduck + wildduck-attachments)
-    const { dataSize, indexSize, storageSize } = await this.getAggregatedDbStats(
-      client
-    );
-
-    // Extract WiredTiger cache metrics
+    const { dataSize, indexSize, storageSize } = await getAggregatedDbStats(client);
     const wtCache = serverStatus.wiredTiger?.cache;
-    const wtCacheUsedBytes = wtCache?.["bytes currently in the cache"] || 0;
-    const wtCacheMaxBytes = wtCache?.["maximum bytes configured"] || 0;
+    const { wtCacheDirtyBytes, wtCacheTimeoutCount, wtEvictionCalls } =
+      extractWiredTigerPressure(serverStatus);
 
     return {
       time: now,
@@ -187,102 +152,45 @@ export class MongodbMetricsCollector {
       indexSizeBytes: indexSize,
       storageSizeBytes: storageSize,
       oplogWindowHours,
-      wtCacheUsedBytes,
-      wtCacheMaxBytes,
-    };
-  }
-
-  private async getOplogWindow(client: MongoClient): Promise<OplogStats> {
-    try {
-      const local = client.db("local");
-      const oplog = local.collection("oplog.rs");
-
-      const [firstDoc, lastDoc] = await Promise.all([
-        oplog.findOne({}, { sort: { ts: 1 }, projection: { ts: 1 } }),
-        oplog.findOne({}, { sort: { ts: -1 }, projection: { ts: 1 } }),
-      ]);
-
-      return {
-        firstTs: firstDoc?.ts?.getHighBits
-          ? new Date(firstDoc.ts.getHighBits() * 1000)
-          : null,
-        lastTs: lastDoc?.ts?.getHighBits
-          ? new Date(lastDoc.ts.getHighBits() * 1000)
-          : null,
-      };
-    } catch (error) {
-      console.warn("[MongoDB Collector] Failed to get oplog window:", error);
-      return { firstTs: null, lastTs: null };
-    }
-  }
-
-  private async getAggregatedDbStats(
-    client: MongoClient
-  ): Promise<DbStats> {
-    const dbNames = ["wildduck", "wildduck-attachments"];
-    let totalDataSize = 0;
-    let totalIndexSize = 0;
-    let totalStorageSize = 0;
-
-    for (const dbName of dbNames) {
-      try {
-        const db = client.db(dbName);
-        const stats = (await db.stats()) as DbStats;
-        totalDataSize += stats.dataSize || 0;
-        totalIndexSize += stats.indexSize || 0;
-        totalStorageSize += stats.storageSize || 0;
-      } catch (error) {
-        console.warn(
-          `[MongoDB Collector] Failed to get stats for ${dbName}:`,
-          error
-        );
-      }
-    }
-
-    return {
-      dataSize: totalDataSize,
-      indexSize: totalIndexSize,
-      storageSize: totalStorageSize,
+      wtCacheUsedBytes: wtCache?.["bytes currently in the cache"] ?? 0,
+      wtCacheMaxBytes: wtCache?.["maximum bytes configured"] ?? 0,
+      wtCacheDirtyBytes,
+      wtCacheTimeoutCount,
+      wtEvictionCalls,
+      connAppImap: null,
+      connAppSmtp: null,
+      connAppInternal: null,
+      connAppMonitoring: null,
+      connAppOther: null,
+      gridfsMessagesBytes: null,
+      gridfsAttachFilesBytes: null,
+      gridfsAttachChunksBytes: null,
+      gridfsStorageFilesBytes: null,
+      gridfsStorageChunksBytes: null,
     };
   }
 
   private extractNodeId(hostPort: string): string {
-    // Extract hostname from "mongodb-01.internal:27017" -> "mongodb-01"
-    const hostname = hostPort.split(":")[0];
-    return hostname.split(".")[0];
+    return hostPort.split(":")[0].split(".")[0];
   }
 
   private buildMemberUri(hostPort: string): string {
-    // Extract just host:port and build a direct connection URI
     const [host, port = "27017"] = hostPort.split(":");
-    // Parse auth from original URI if present
-    const uriParts = this.mongoUri.match(/^mongodb:\/\/([^@]+@)?(.+)/);
-    const auth = uriParts?.[1] || "";
+    const auth = this.mongoUri.match(/^mongodb:\/\/([^@]+@)?/)?.[1] ?? "";
     return `mongodb://${auth}${host}:${port}/?directConnection=true`;
   }
 
   async disconnect(): Promise<void> {
-    try {
-      if (this.primaryClient) {
-        await this.primaryClient.close();
-        this.primaryClient = null;
-      }
-
-      for (const [name, client] of this.memberClients.entries()) {
-        try {
-          await client.close();
-        } catch (error) {
-          console.warn(
-            `[MongoDB Collector] Failed to close connection to ${name}:`,
-            error
-          );
-        }
-      }
-      this.memberClients.clear();
-
-      console.info("[MongoDB Collector] Disconnected");
-    } catch (error) {
-      console.error("[MongoDB Collector] Disconnect error:", error);
+    if (this.primaryClient) {
+      await this.primaryClient.close().catch(() => {});
+      this.primaryClient = null;
     }
+    for (const [name, client] of this.memberClients.entries()) {
+      await client.close().catch((e: Error) =>
+        console.warn(`[MongoDB Collector] Close failed for ${name}:`, e.message)
+      );
+    }
+    this.memberClients.clear();
+    console.info("[MongoDB Collector] Disconnected");
   }
 }

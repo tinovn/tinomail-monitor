@@ -7,6 +7,7 @@ import type {
   RedisMetricsInput,
   ZonemtaMetricsInput,
   RspamdMetricsInput,
+  MongodbReplEventInput,
 } from "../schemas/metrics-validation-schemas.js";
 
 export class MetricsIngestionService {
@@ -56,7 +57,11 @@ export class MetricsIngestionService {
         time, node_id, role, connections_current, connections_available,
         ops_insert, ops_query, ops_update, ops_delete, ops_command,
         repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
-        oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
+        oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes,
+        wt_cache_dirty_bytes, wt_cache_timeout_count, wt_eviction_calls,
+        conn_app_imap, conn_app_smtp, conn_app_internal, conn_app_monitoring, conn_app_other,
+        gridfs_messages_bytes, gridfs_attach_files_bytes, gridfs_attach_chunks_bytes,
+        gridfs_storage_files_bytes, gridfs_storage_chunks_bytes
       ) VALUES (
         ${timestamp}, ${metrics.nodeId}, ${metrics.role ?? null},
         ${metrics.connectionsCurrent ?? null}, ${metrics.connectionsAvailable ?? null},
@@ -65,11 +70,38 @@ export class MetricsIngestionService {
         ${metrics.replLagSeconds ?? null}, ${metrics.dataSizeBytes ?? null},
         ${metrics.indexSizeBytes ?? null}, ${metrics.storageSizeBytes ?? null},
         ${metrics.oplogWindowHours ?? null}, ${metrics.wtCacheUsedBytes ?? null},
-        ${metrics.wtCacheMaxBytes ?? null}
+        ${metrics.wtCacheMaxBytes ?? null},
+        ${metrics.wtCacheDirtyBytes ?? null}, ${metrics.wtCacheTimeoutCount ?? null},
+        ${metrics.wtEvictionCalls ?? null},
+        ${metrics.connAppImap ?? null}, ${metrics.connAppSmtp ?? null},
+        ${metrics.connAppInternal ?? null}, ${metrics.connAppMonitoring ?? null},
+        ${metrics.connAppOther ?? null},
+        ${metrics.gridfsMessagesBytes ?? null}, ${metrics.gridfsAttachFilesBytes ?? null},
+        ${metrics.gridfsAttachChunksBytes ?? null},
+        ${metrics.gridfsStorageFilesBytes ?? null}, ${metrics.gridfsStorageChunksBytes ?? null}
       )
     `;
 
     this.app.log.debug({ nodeId: metrics.nodeId }, "MongoDB metrics ingested");
+  }
+
+  async ingestMongodbReplEvents(events: MongodbReplEventInput[]): Promise<void> {
+    if (events.length === 0) return;
+
+    for (const event of events) {
+      const timestamp = event.timestamp || new Date().toISOString();
+      await this.app.sql`
+        INSERT INTO mongodb_repl_events (
+          time, node_id, event_type, old_role, new_role, details
+        ) VALUES (
+          ${timestamp}, ${event.nodeId}, ${event.eventType},
+          ${event.oldRole ?? null}, ${event.newRole ?? null},
+          ${event.details ? JSON.stringify(event.details) : null}
+        )
+      `;
+    }
+
+    this.app.log.debug({ count: events.length }, "MongoDB repl events ingested");
   }
 
   async ingestRedisMetrics(metrics: RedisMetricsInput): Promise<void> {

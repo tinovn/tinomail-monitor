@@ -1,3 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
+import { apiClient } from "@/lib/api-http-client";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { SparklineMiniChart } from "@/components/charts/sparkline-mini-chart";
 import { cn } from "@/lib/classname-utils";
 
 interface MongodbNodeStatus {
@@ -20,11 +24,27 @@ interface ReplicaSetStatusPanelProps {
 }
 
 export function ReplicaSetStatusPanel({ nodes }: ReplicaSetStatusPanelProps) {
+  const autoRefresh = useTimeRangeStore((state) => state.autoRefresh);
+
+  const { data: lagSparklines } = useQuery({
+    queryKey: ["mongodb", "repl-lag-sparkline"],
+    queryFn: () => apiClient.get<Record<string, number[]>>("/mongodb/repl-lag-sparkline"),
+    refetchInterval: autoRefresh ? autoRefresh * 1000 : false,
+  });
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
       {nodes.map((node) => {
         const lagStatus = getLagStatus(node.replLagSeconds);
         const roleColor = getRoleColor(node.role);
+        const isSecondary = node.role?.toUpperCase() === "SECONDARY";
+        const sparklineData = lagSparklines?.[node.nodeId] ?? [];
+        const sparklineColor =
+          lagStatus === "critical"
+            ? "oklch(0.65 0.15 25)"
+            : lagStatus === "warning"
+              ? "oklch(0.70 0.15 80)"
+              : "oklch(0.65 0.15 150)";
 
         return (
           <div
@@ -35,12 +55,7 @@ export function ReplicaSetStatusPanel({ nodes }: ReplicaSetStatusPanelProps) {
               <h3 className="text-sm font-semibold text-foreground">
                 {node.nodeId}
               </h3>
-              <span
-                className={cn(
-                  "rounded px-2 py-0.5 text-xs font-medium",
-                  roleColor,
-                )}
-              >
+              <span className={cn("rounded px-2 py-0.5 text-xs font-medium", roleColor)}>
                 {node.role?.toUpperCase() || "UNKNOWN"}
               </span>
             </div>
@@ -62,6 +77,14 @@ export function ReplicaSetStatusPanel({ nodes }: ReplicaSetStatusPanelProps) {
                 </span>
               </div>
 
+              {isSecondary && sparklineData.length > 0 && (
+                <SparklineMiniChart
+                  data={sparklineData}
+                  color={sparklineColor}
+                  height={32}
+                />
+              )}
+
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Connections:</span>
                 <span className="font-medium text-foreground">
@@ -80,18 +103,12 @@ export function ReplicaSetStatusPanel({ nodes }: ReplicaSetStatusPanelProps) {
 
 function getRoleColor(role: string | null): string {
   const normalized = role?.toUpperCase();
-  if (normalized === "PRIMARY") {
-    return "bg-status-ok/20 text-status-ok";
-  }
-  if (normalized === "SECONDARY") {
-    return "bg-status-info/20 text-status-info";
-  }
+  if (normalized === "PRIMARY") return "bg-status-ok/20 text-status-ok";
+  if (normalized === "SECONDARY") return "bg-status-info/20 text-status-info";
   return "bg-muted text-muted-foreground";
 }
 
-function getLagStatus(
-  lagSeconds: number | null,
-): "ok" | "warning" | "critical" {
+function getLagStatus(lagSeconds: number | null): "ok" | "warning" | "critical" {
   if (lagSeconds === null) return "ok";
   if (lagSeconds > 30) return "critical";
   if (lagSeconds > 10) return "warning";

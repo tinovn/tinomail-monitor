@@ -318,11 +318,16 @@ export class MonitoringAgent {
   private async collectAndSendMongodb(): Promise<void> {
     if (!this.mongodbCollector) return;
     try {
-      const metricsArray = await this.mongodbCollector.collectAll();
-      for (const metrics of metricsArray) {
-        await this.transport.send({ type: "mongodb", data: metrics });
+      const { metrics, events } = await this.mongodbCollector.collectAllWithEvents();
+      for (const m of metrics) {
+        await this.transport.send({ type: "mongodb", data: m });
       }
-      console.info(`[Agent] MongoDB: ${metricsArray.length} members collected`);
+      if (events.length > 0) {
+        await this.transport.send({ type: "mongodb_events", data: events });
+      }
+      console.info(
+        `[Agent] MongoDB: ${metrics.length} members, ${events.length} events`
+      );
     } catch (error) {
       console.error("[Agent] MongoDB metrics collection failed:", error);
     }
@@ -355,11 +360,7 @@ export class MonitoringAgent {
   }
 
   private async checkAndUpdate(): Promise<void> {
-    const update = await this.updater.checkForUpdate();
-    if (update) {
-      console.info(`[Agent] Update available: ${AGENT_VERSION} → ${update.version}`);
-      await this.updater.performUpdate(update);
-    }
+    await this.updater.checkAndApplyUpdates();
   }
 
   private async flushBuffer(): Promise<void> {

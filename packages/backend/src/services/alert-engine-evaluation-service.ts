@@ -4,7 +4,7 @@ import { alertRules } from "../db/schema/alert-rules-table.js";
 import { alertEvents } from "../db/schema/alert-events-table.js";
 
 interface ConditionParsed {
-  type: "metric_threshold" | "absence" | "count";
+  type: "metric_threshold" | "absence" | "count" | "mongodb_no_primary" | "ops_total_drop_zero" | "wt_cache_percent_high";
   metric?: string;
   operator?: string;
   value?: number;
@@ -85,6 +85,31 @@ export class AlertEngineEvaluationService {
       }
     }
 
+    // MongoDB metric threshold: "repl_lag_seconds > 30", "wt_cache_timeout_count > 0", etc.
+    const mongoMetricMatch = condition.match(/^(\w+)\s*([><=]+)\s*([\d.]+)$/);
+    if (mongoMetricMatch) {
+      const metric = mongoMetricMatch[1];
+      if (AlertEngineEvaluationService.ALLOWED_MONGODB_METRICS.has(metric)) {
+        return {
+          type: "metric_threshold",
+          metric,
+          operator: mongoMetricMatch[2],
+          value: parseFloat(mongoMetricMatch[3]),
+          table: "metrics_mongodb",
+        };
+      }
+    }
+
+    // Computed MongoDB conditions
+    const cachePctMatch = condition.match(/^wt_cache_percent_high\s*>\s*([\d.]+)$/);
+    if (cachePctMatch) {
+      return { type: "wt_cache_percent_high", value: parseFloat(cachePctMatch[1]) };
+    }
+
+    // Special MongoDB conditions
+    if (condition === "mongodb_no_primary") return { type: "mongodb_no_primary" };
+    if (condition === "ops_total_drop_zero") return { type: "ops_total_drop_zero" };
+
     // Default to metric threshold
     return { type: "metric_threshold", metric: "cpu_percent", operator: ">", value: 85 };
   }
@@ -93,11 +118,18 @@ export class AlertEngineEvaluationService {
   private async checkCondition(condition: ConditionParsed): Promise<boolean> {
     switch (condition.type) {
       case "metric_threshold":
+        if (condition.table === "metrics_mongodb") return await this.checkMongodbMetricThreshold(condition);
         return await this.checkMetricThreshold(condition);
       case "absence":
         return await this.checkAbsence(condition);
       case "count":
         return await this.checkCount(condition);
+      case "mongodb_no_primary":
+        return await this.checkMongodbNoPrimary();
+      case "ops_total_drop_zero":
+        return await this.checkOpsTotalDropZero();
+      case "wt_cache_percent_high":
+        return await this.checkWtCachePercentHigh(condition);
       default:
         return false;
     }
@@ -108,6 +140,14 @@ export class AlertEngineEvaluationService {
     "cpu_percent", "ram_percent", "disk_percent", "load_avg_1",
     "load_avg_5", "load_avg_15", "net_in_bytes", "net_out_bytes",
     "swap_percent", "iops_read", "iops_write",
+  ]);
+
+  /** Whitelist of allowed MongoDB metric column names */
+  private static readonly ALLOWED_MONGODB_METRICS = new Set([
+    "repl_lag_seconds", "connections_current", "wt_cache_used_bytes",
+    "wt_cache_max_bytes", "wt_cache_dirty_bytes", "wt_cache_timeout_count",
+    "wt_eviction_calls", "oplog_window_hours",
+    "ops_insert", "ops_query", "ops_update", "ops_delete", "ops_command",
   ]);
 
   /** Parse and validate interval string to prevent SQL injection */
@@ -180,6 +220,92 @@ export class AlertEngineEvaluationService {
     `;
 
     return counts[0]?.count > condition.value;
+  }
+
+  /** Check MongoDB metric threshold (queries metrics_mongodb table) */
+  private async checkMongodbMetricThreshold(condition: ConditionParsed): Promise<boolean> {
+    if (!condition.metric || !condition.operator || condition.value === undefined) return false;
+
+    if (!AlertEngineEvaluationService.ALLOWED_MONGODB_METRICS.has(condition.metric)) {
+      this.app.log.warn({ metric: condition.metric }, "Rejected unknown MongoDB metric name in alert condition");
+      return false;
+    }
+
+    const sql = this.app.sql;
+    const recentMetrics = await sql`
+      SELECT DISTINCT ON (node_id)
+        node_id, ${sql(condition.metric)}, time
+      FROM metrics_mongodb
+      WHERE time >= NOW() - INTERVAL '2 minutes'
+      ORDER BY node_id, time DESC
+    `;
+
+    if (recentMetrics.length === 0) return false;
+
+    for (const metric of recentMetrics) {
+      const value = metric[condition.metric];
+      if (value !== null && this.compareValues(value, condition.operator, condition.value)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /** Check if MongoDB has no primary node in the last 2 minutes */
+  private async checkMongodbNoPrimary(): Promise<boolean> {
+    const sql = this.app.sql;
+    const result = await sql`
+      SELECT COUNT(*) as cnt FROM (
+        SELECT DISTINCT ON (node_id) node_id, role FROM metrics_mongodb
+        WHERE time >= NOW() - INTERVAL '2 minutes'
+        ORDER BY node_id, time DESC
+      ) latest WHERE role = 'primary'
+    `;
+
+    return parseInt(result[0]?.cnt ?? "0") === 0;
+  }
+
+  /** Check if total ops dropped to zero while connections are active */
+  private async checkOpsTotalDropZero(): Promise<boolean> {
+    const sql = this.app.sql;
+    const result = await sql`
+      SELECT node_id,
+        COALESCE(ops_insert, 0) + COALESCE(ops_query, 0) + COALESCE(ops_update, 0) + COALESCE(ops_delete, 0) AS total_ops,
+        connections_current
+      FROM (
+        SELECT DISTINCT ON (node_id) * FROM metrics_mongodb
+        WHERE time >= NOW() - INTERVAL '2 minutes'
+        ORDER BY node_id, time DESC
+      ) latest
+      WHERE connections_current > 10
+    `;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return result.some((row: any) => Number(row.total_ops) === 0);
+  }
+
+  /** Check if WiredTiger cache usage exceeds percentage threshold */
+  private async checkWtCachePercentHigh(condition: ConditionParsed): Promise<boolean> {
+    if (condition.value === undefined) return false;
+
+    const sql = this.app.sql;
+    const result = await sql`
+      SELECT node_id, wt_cache_used_bytes, wt_cache_max_bytes
+      FROM (
+        SELECT DISTINCT ON (node_id) node_id, wt_cache_used_bytes, wt_cache_max_bytes
+        FROM metrics_mongodb
+        WHERE time >= NOW() - INTERVAL '2 minutes'
+        ORDER BY node_id, time DESC
+      ) latest
+      WHERE wt_cache_max_bytes > 0
+    `;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return result.some((row: any) => {
+      const pct = (Number(row.wt_cache_used_bytes) / Number(row.wt_cache_max_bytes)) * 100;
+      return pct > condition.value!;
+    });
   }
 
   /** Compare values based on operator */

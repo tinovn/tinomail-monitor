@@ -42,7 +42,7 @@ export const systemMetricsSchema = z.object({
   processes: z.array(processHealthSchema).optional(),
 });
 
-// MongoDB metrics ingestion schema — flat structure matching Drizzle schema (16 columns)
+// MongoDB metrics ingestion schema — flat structure matching Drizzle schema (29 columns)
 export const mongodbMetricsSchema = z.object({
   nodeId: z.string(),
   timestamp: z.string().datetime().optional(),
@@ -61,7 +61,33 @@ export const mongodbMetricsSchema = z.object({
   oplogWindowHours: z.number().nonnegative().nullable().optional(),
   wtCacheUsedBytes: z.number().int().nonnegative().nullable().optional(),
   wtCacheMaxBytes: z.number().int().nonnegative().nullable().optional(),
+  // New fields (v2 agents)
+  wtCacheDirtyBytes: z.number().int().nonnegative().nullable().optional(),
+  wtCacheTimeoutCount: z.number().int().nonnegative().nullable().optional(),
+  wtEvictionCalls: z.number().int().nonnegative().nullable().optional(),
+  connAppImap: z.number().int().nonnegative().nullable().optional(),
+  connAppSmtp: z.number().int().nonnegative().nullable().optional(),
+  connAppInternal: z.number().int().nonnegative().nullable().optional(),
+  connAppMonitoring: z.number().int().nonnegative().nullable().optional(),
+  connAppOther: z.number().int().nonnegative().nullable().optional(),
+  gridfsMessagesBytes: z.number().int().nonnegative().nullable().optional(),
+  gridfsAttachFilesBytes: z.number().int().nonnegative().nullable().optional(),
+  gridfsAttachChunksBytes: z.number().int().nonnegative().nullable().optional(),
+  gridfsStorageFilesBytes: z.number().int().nonnegative().nullable().optional(),
+  gridfsStorageChunksBytes: z.number().int().nonnegative().nullable().optional(),
 });
+
+// MongoDB replication event schema — for POST /api/v1/metrics/mongodb-events
+export const mongodbReplEventSchema = z.object({
+  nodeId: z.string(),
+  timestamp: z.string().datetime().optional(),
+  eventType: z.enum(["election", "step_down", "step_up", "member_unreachable", "member_recovered"]),
+  oldRole: z.string().nullable().optional(),
+  newRole: z.string().nullable().optional(),
+  details: z.record(z.unknown()).optional(),
+});
+export const mongodbReplEventsSchema = z.array(mongodbReplEventSchema);
+export type MongodbReplEventInput = z.infer<typeof mongodbReplEventSchema>;
 
 // Redis metrics ingestion schema — matches metrics_redis hypertable
 export const redisMetricsSchema = z.object({

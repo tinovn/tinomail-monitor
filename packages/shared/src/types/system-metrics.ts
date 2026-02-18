@@ -52,6 +52,32 @@ export interface MongodbMetrics {
   oplogWindowHours: number | null;
   wtCacheUsedBytes: number;
   wtCacheMaxBytes: number;
+  // WiredTiger cache pressure (#3)
+  wtCacheDirtyBytes: number | null;
+  wtCacheTimeoutCount: number | null;
+  wtEvictionCalls: number | null;
+  // Connection source breakdown (#4)
+  connAppImap: number | null;
+  connAppSmtp: number | null;
+  connAppInternal: number | null;
+  connAppMonitoring: number | null;
+  connAppOther: number | null;
+  // GridFS per-collection sizes (#6) — PRIMARY only
+  gridfsMessagesBytes: number | null;
+  gridfsAttachFilesBytes: number | null;
+  gridfsAttachChunksBytes: number | null;
+  gridfsStorageFilesBytes: number | null;
+  gridfsStorageChunksBytes: number | null;
+}
+
+/** Replica set event detected by comparing consecutive collection cycles */
+export interface MongodbReplEvent {
+  time: Date;
+  nodeId: string;
+  eventType: "election" | "step_down" | "step_up" | "member_unreachable" | "member_recovered";
+  oldRole: string | null;
+  newRole: string | null;
+  details?: Record<string, unknown>;
 }
 
 /** Redis metrics collected every 30s */
@@ -100,6 +126,7 @@ export interface RspamdMetrics {
 export type MetricsPayload =
   | { type: "system"; data: SystemMetrics }
   | { type: "mongodb"; data: MongodbMetrics }
+  | { type: "mongodb_events"; data: MongodbReplEvent[] }
   | { type: "redis"; data: RedisMetrics }
   | { type: "zonemta"; data: ZonemtaMetrics }
   | { type: "rspamd"; data: RspamdMetrics };

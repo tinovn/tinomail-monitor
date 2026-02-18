@@ -18,7 +18,7 @@ export class HttpMetricsTransport {
     for (let attempt = 0; attempt < this.config.maxRetries; attempt++) {
       try {
         const response = await fetch(
-          `${this.config.serverUrl}/api/v1/metrics/${payload.type}`,
+          `${this.config.serverUrl}/api/v1/metrics/${payload.type.replace(/_/g, "-")}`,
           {
             method: "POST",
             headers: {
