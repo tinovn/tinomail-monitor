@@ -54,6 +54,10 @@ export class ZonemtaEmailEventCollector {
     await this.client.connect();
     console.info("[ZoneMTA Events] Connected to MongoDB");
 
+    // Enable change stream pre-images so we can read docs before deletion.
+    // ZoneMTA deletes zone-queue docs on SENT/BOUNCED — pre-images let us capture the final state.
+    await this.enablePreImages();
+
     this.lastResumeToken = this.loadResumeToken();
     this.openChangeStream();
     this.flushTimer = setInterval(() => this.flush(), FLUSH_INTERVAL_MS);
@@ -83,24 +87,42 @@ export class ZonemtaEmailEventCollector {
     console.info("[ZoneMTA Events] Disconnected");
   }
 
+  /** Enable change stream pre/post images on zone-queue so delete events include the document */
+  private async enablePreImages(): Promise<void> {
+    if (!this.client) return;
+    try {
+      await this.client.db("zone-mta").command({
+        collMod: "zone-queue",
+        changeStreamPreAndPostImages: { enabled: true },
+      });
+      console.info("[ZoneMTA Events] Pre-images enabled on zone-queue");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // Ignore "already enabled" or permission errors — pre-images are best-effort
+      console.warn("[ZoneMTA Events] Could not enable pre-images:", msg);
+    }
+  }
+
   private openChangeStream(): void {
     if (!this.client) return;
 
     const collection = this.client.db("zone-mta").collection("zone-queue");
 
-    // Watch for any mutation — filter status in handleChange() instead of pipeline.
-    // ZoneMTA uses update/replace/delete patterns depending on version and delivery outcome.
-    // Using a broad pipeline avoids missing events due to operation type mismatches.
+    // ZoneMTA lifecycle: insert → update(lock/status) → deleteOne() on SENT/BOUNCED.
+    // DEFERRED: update with new scheduled time (document stays).
+    // We watch delete events to capture SENT/BOUNCED (using pre-image to get doc before removal)
+    // and update events to capture DEFERRED status changes.
     const pipeline = [
       {
         $match: {
-          operationType: { $in: ["update", "replace", "insert"] },
+          operationType: { $in: ["update", "replace", "delete"] },
         },
       },
     ];
 
     const options: Record<string, unknown> = {
       fullDocument: "updateLookup" as const,
+      fullDocumentBeforeChange: "whenAvailable" as const,
     };
     if (this.lastResumeToken) {
       options.resumeAfter = this.lastResumeToken;
@@ -129,17 +151,35 @@ export class ZonemtaEmailEventCollector {
   }
 
   private async handleChange(change: Record<string, unknown>): Promise<void> {
-    const fullDocument = change.fullDocument as Record<string, unknown> | null;
-    if (!fullDocument) return;
+    const opType = change.operationType as string;
 
-    const status = String(fullDocument.status || "");
-    const eventType = STATUS_MAP[status];
+    // For delete events: use pre-image (fullDocumentBeforeChange) to get doc before removal.
+    // ZoneMTA deletes zone-queue docs on SENT/BOUNCED after updating status+response.
+    // For update events: use fullDocument (updateLookup) to get current doc state.
+    const doc = opType === "delete"
+      ? (change.fullDocumentBeforeChange as Record<string, unknown> | null)
+      : (change.fullDocument as Record<string, unknown> | null);
+
+    if (!doc) {
+      // Pre-images not available for delete — log once to help diagnose
+      if (opType === "delete") {
+        console.debug("[ZoneMTA Events] Delete event without pre-image — enable changeStreamPreAndPostImages on zone-queue collection");
+      }
+      return;
+    }
+
+    // For delete events without an explicit status, treat as "delivered" (ZoneMTA deletes on success)
+    const status = String(doc.status || "");
+    let eventType = STATUS_MAP[status];
+    if (!eventType && opType === "delete") {
+      eventType = "delivered";
+    }
     if (!eventType) return;
 
     // zone-queue docs don't have returnPath/from — lookup mail.files by queue id
-    const fromAddress = await this.lookupSender(fullDocument.id as string);
+    const fromAddress = await this.lookupSender(doc.id as string);
 
-    const event = this.mapToEmailEvent(fullDocument, eventType, fromAddress);
+    const event = this.mapToEmailEvent(doc, eventType, fromAddress);
     this.eventBuffer.push(event);
 
     // Store resume token from the change event
