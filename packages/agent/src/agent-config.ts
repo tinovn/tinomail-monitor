@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /** Bump this on each agent release */
-export const AGENT_VERSION = "0.5.3";
+export const AGENT_VERSION = "0.5.4";
 
 const envSchema = z.object({
   AGENT_SERVER_URL: z.string().default("http://localhost:3001"),
