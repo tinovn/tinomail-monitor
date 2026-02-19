@@ -39,22 +39,28 @@ export class MongodbTimeseriesQueryService {
 
   /** Query replication events within a time range, newest first, limit 100 */
   async getReplEvents(from: string, to: string): Promise<ReplEvent[]> {
-    const result = await this.app.sql`
-      SELECT time, node_id, event_type, old_role, new_role, details
-      FROM mongodb_repl_events
-      WHERE time >= ${from}::timestamptz AND time <= ${to}::timestamptz
-      ORDER BY time DESC
-      LIMIT 100
-    `;
+    try {
+      const result = await this.app.sql`
+        SELECT time, node_id, event_type, old_role, new_role, details
+        FROM mongodb_repl_events
+        WHERE time >= ${from}::timestamptz AND time <= ${to}::timestamptz
+        ORDER BY time DESC
+        LIMIT 100
+      `;
 
-    return (result as unknown as any[]).map((row) => ({
-      time: row.time instanceof Date ? row.time.toISOString() : row.time,
-      nodeId: row.node_id,
-      eventType: row.event_type,
-      oldRole: row.old_role,
-      newRole: row.new_role,
-      details: row.details,
-    }));
+      return (result as unknown as any[]).map((row) => ({
+        time: row.time instanceof Date ? row.time.toISOString() : row.time,
+        nodeId: row.node_id,
+        eventType: row.event_type,
+        oldRole: row.old_role,
+        newRole: row.new_role,
+        details: row.details,
+      }));
+    } catch (err: any) {
+      // 42P01 = undefined_table — mongodb_repl_events not created yet
+      if (err?.code === "42P01") return [];
+      throw err;
+    }
   }
 
   /** Get last 20 data points of repl_lag_seconds per secondary node */
@@ -128,50 +134,62 @@ export class MongodbTimeseriesQueryService {
 
   /** Latest connection app breakdown from PRIMARY node */
   async getConnectionBreakdown(): Promise<ConnectionBreakdown | null> {
-    const result = await this.app.sql`
-      SELECT DISTINCT ON (node_id)
-        node_id, conn_app_imap, conn_app_smtp, conn_app_internal, conn_app_monitoring, conn_app_other
-      FROM metrics_mongodb
-      WHERE role = 'primary' AND time >= NOW() - INTERVAL '1 hour'
-      ORDER BY node_id, time DESC
-    `;
+    try {
+      const result = await this.app.sql`
+        SELECT DISTINCT ON (node_id)
+          node_id, conn_app_imap, conn_app_smtp, conn_app_internal, conn_app_monitoring, conn_app_other
+        FROM metrics_mongodb
+        WHERE role = 'primary' AND time >= NOW() - INTERVAL '1 hour'
+        ORDER BY node_id, time DESC
+      `;
 
-    const rows = result as unknown as any[];
-    if (rows.length === 0) return null;
-    const row = rows[0];
+      const rows = result as unknown as any[];
+      if (rows.length === 0) return null;
+      const row = rows[0];
 
-    return {
-      nodeId: row.node_id,
-      connAppImap: row.conn_app_imap,
-      connAppSmtp: row.conn_app_smtp,
-      connAppInternal: row.conn_app_internal,
-      connAppMonitoring: row.conn_app_monitoring,
-      connAppOther: row.conn_app_other,
-    };
+      return {
+        nodeId: row.node_id,
+        connAppImap: row.conn_app_imap,
+        connAppSmtp: row.conn_app_smtp,
+        connAppInternal: row.conn_app_internal,
+        connAppMonitoring: row.conn_app_monitoring,
+        connAppOther: row.conn_app_other,
+      };
+    } catch (err: any) {
+      // 42703 = undefined_column — new columns not migrated yet
+      if (err?.code === "42703") return null;
+      throw err;
+    }
   }
 
   /** Latest GridFS storage breakdown from PRIMARY node */
   async getGridfsBreakdown(): Promise<GridfsBreakdown | null> {
-    const result = await this.app.sql`
-      SELECT DISTINCT ON (node_id)
-        node_id, gridfs_messages_bytes, gridfs_attach_files_bytes, gridfs_attach_chunks_bytes,
-        gridfs_storage_files_bytes, gridfs_storage_chunks_bytes
-      FROM metrics_mongodb
-      WHERE role = 'primary' AND time >= NOW() - INTERVAL '1 hour'
-      ORDER BY node_id, time DESC
-    `;
+    try {
+      const result = await this.app.sql`
+        SELECT DISTINCT ON (node_id)
+          node_id, gridfs_messages_bytes, gridfs_attach_files_bytes, gridfs_attach_chunks_bytes,
+          gridfs_storage_files_bytes, gridfs_storage_chunks_bytes
+        FROM metrics_mongodb
+        WHERE role = 'primary' AND time >= NOW() - INTERVAL '1 hour'
+        ORDER BY node_id, time DESC
+      `;
 
-    const rows = result as unknown as any[];
-    if (rows.length === 0) return null;
-    const row = rows[0];
+      const rows = result as unknown as any[];
+      if (rows.length === 0) return null;
+      const row = rows[0];
 
-    return {
-      nodeId: row.node_id,
-      gridfsMessagesBytes: row.gridfs_messages_bytes,
-      gridfsAttachFilesBytes: row.gridfs_attach_files_bytes,
-      gridfsAttachChunksBytes: row.gridfs_attach_chunks_bytes,
-      gridfsStorageFilesBytes: row.gridfs_storage_files_bytes,
-      gridfsStorageChunksBytes: row.gridfs_storage_chunks_bytes,
-    };
+      return {
+        nodeId: row.node_id,
+        gridfsMessagesBytes: row.gridfs_messages_bytes,
+        gridfsAttachFilesBytes: row.gridfs_attach_files_bytes,
+        gridfsAttachChunksBytes: row.gridfs_attach_chunks_bytes,
+        gridfsStorageFilesBytes: row.gridfs_storage_files_bytes,
+        gridfsStorageChunksBytes: row.gridfs_storage_chunks_bytes,
+      };
+    } catch (err: any) {
+      // 42703 = undefined_column — new columns not migrated yet
+      if (err?.code === "42703") return null;
+      throw err;
+    }
   }
 }

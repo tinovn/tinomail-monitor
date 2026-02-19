@@ -231,25 +231,31 @@ export class AlertEngineEvaluationService {
       return false;
     }
 
-    const sql = this.app.sql;
-    const recentMetrics = await sql`
-      SELECT DISTINCT ON (node_id)
-        node_id, ${sql(condition.metric)}, time
-      FROM metrics_mongodb
-      WHERE time >= NOW() - INTERVAL '2 minutes'
-      ORDER BY node_id, time DESC
-    `;
+    try {
+      const sql = this.app.sql;
+      const recentMetrics = await sql`
+        SELECT DISTINCT ON (node_id)
+          node_id, ${sql(condition.metric)}, time
+        FROM metrics_mongodb
+        WHERE time >= NOW() - INTERVAL '2 minutes'
+        ORDER BY node_id, time DESC
+      `;
 
-    if (recentMetrics.length === 0) return false;
+      if (recentMetrics.length === 0) return false;
 
-    for (const metric of recentMetrics) {
-      const value = metric[condition.metric];
-      if (value !== null && this.compareValues(value, condition.operator, condition.value)) {
-        return true;
+      for (const metric of recentMetrics) {
+        const value = metric[condition.metric];
+        if (value !== null && this.compareValues(value, condition.operator, condition.value)) {
+          return true;
+        }
       }
-    }
 
-    return false;
+      return false;
+    } catch (err: any) {
+      // 42703 = undefined_column — new columns not migrated yet
+      if (err?.code === "42703") return false;
+      throw err;
+    }
   }
 
   /** Check if MongoDB has no primary node in the last 2 minutes */

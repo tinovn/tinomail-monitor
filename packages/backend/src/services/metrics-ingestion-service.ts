@@ -52,35 +52,61 @@ export class MetricsIngestionService {
   async ingestMongodbMetrics(metrics: MongodbMetricsInput): Promise<void> {
     const timestamp = metrics.timestamp || new Date().toISOString();
 
-    await this.app.sql`
-      INSERT INTO metrics_mongodb (
-        time, node_id, role, connections_current, connections_available,
-        ops_insert, ops_query, ops_update, ops_delete, ops_command,
-        repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
-        oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes,
-        wt_cache_dirty_bytes, wt_cache_timeout_count, wt_eviction_calls,
-        conn_app_imap, conn_app_smtp, conn_app_internal, conn_app_monitoring, conn_app_other,
-        gridfs_messages_bytes, gridfs_attach_files_bytes, gridfs_attach_chunks_bytes,
-        gridfs_storage_files_bytes, gridfs_storage_chunks_bytes
-      ) VALUES (
-        ${timestamp}, ${metrics.nodeId}, ${metrics.role ?? null},
-        ${metrics.connectionsCurrent ?? null}, ${metrics.connectionsAvailable ?? null},
-        ${metrics.opsInsert ?? null}, ${metrics.opsQuery ?? null},
-        ${metrics.opsUpdate ?? null}, ${metrics.opsDelete ?? null}, ${metrics.opsCommand ?? null},
-        ${metrics.replLagSeconds ?? null}, ${metrics.dataSizeBytes ?? null},
-        ${metrics.indexSizeBytes ?? null}, ${metrics.storageSizeBytes ?? null},
-        ${metrics.oplogWindowHours ?? null}, ${metrics.wtCacheUsedBytes ?? null},
-        ${metrics.wtCacheMaxBytes ?? null},
-        ${metrics.wtCacheDirtyBytes ?? null}, ${metrics.wtCacheTimeoutCount ?? null},
-        ${metrics.wtEvictionCalls ?? null},
-        ${metrics.connAppImap ?? null}, ${metrics.connAppSmtp ?? null},
-        ${metrics.connAppInternal ?? null}, ${metrics.connAppMonitoring ?? null},
-        ${metrics.connAppOther ?? null},
-        ${metrics.gridfsMessagesBytes ?? null}, ${metrics.gridfsAttachFilesBytes ?? null},
-        ${metrics.gridfsAttachChunksBytes ?? null},
-        ${metrics.gridfsStorageFilesBytes ?? null}, ${metrics.gridfsStorageChunksBytes ?? null}
-      )
-    `;
+    try {
+      await this.app.sql`
+        INSERT INTO metrics_mongodb (
+          time, node_id, role, connections_current, connections_available,
+          ops_insert, ops_query, ops_update, ops_delete, ops_command,
+          repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+          oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes,
+          wt_cache_dirty_bytes, wt_cache_timeout_count, wt_eviction_calls,
+          conn_app_imap, conn_app_smtp, conn_app_internal, conn_app_monitoring, conn_app_other,
+          gridfs_messages_bytes, gridfs_attach_files_bytes, gridfs_attach_chunks_bytes,
+          gridfs_storage_files_bytes, gridfs_storage_chunks_bytes
+        ) VALUES (
+          ${timestamp}, ${metrics.nodeId}, ${metrics.role ?? null},
+          ${metrics.connectionsCurrent ?? null}, ${metrics.connectionsAvailable ?? null},
+          ${metrics.opsInsert ?? null}, ${metrics.opsQuery ?? null},
+          ${metrics.opsUpdate ?? null}, ${metrics.opsDelete ?? null}, ${metrics.opsCommand ?? null},
+          ${metrics.replLagSeconds ?? null}, ${metrics.dataSizeBytes ?? null},
+          ${metrics.indexSizeBytes ?? null}, ${metrics.storageSizeBytes ?? null},
+          ${metrics.oplogWindowHours ?? null}, ${metrics.wtCacheUsedBytes ?? null},
+          ${metrics.wtCacheMaxBytes ?? null},
+          ${metrics.wtCacheDirtyBytes ?? null}, ${metrics.wtCacheTimeoutCount ?? null},
+          ${metrics.wtEvictionCalls ?? null},
+          ${metrics.connAppImap ?? null}, ${metrics.connAppSmtp ?? null},
+          ${metrics.connAppInternal ?? null}, ${metrics.connAppMonitoring ?? null},
+          ${metrics.connAppOther ?? null},
+          ${metrics.gridfsMessagesBytes ?? null}, ${metrics.gridfsAttachFilesBytes ?? null},
+          ${metrics.gridfsAttachChunksBytes ?? null},
+          ${metrics.gridfsStorageFilesBytes ?? null}, ${metrics.gridfsStorageChunksBytes ?? null}
+        )
+      `;
+    } catch (err: any) {
+      // 42703 = undefined_column — new columns not migrated yet, insert base columns only
+      if (err?.code === "42703") {
+        this.app.log.warn("MongoDB metrics: new columns not migrated, inserting base columns only");
+        await this.app.sql`
+          INSERT INTO metrics_mongodb (
+            time, node_id, role, connections_current, connections_available,
+            ops_insert, ops_query, ops_update, ops_delete, ops_command,
+            repl_lag_seconds, data_size_bytes, index_size_bytes, storage_size_bytes,
+            oplog_window_hours, wt_cache_used_bytes, wt_cache_max_bytes
+          ) VALUES (
+            ${timestamp}, ${metrics.nodeId}, ${metrics.role ?? null},
+            ${metrics.connectionsCurrent ?? null}, ${metrics.connectionsAvailable ?? null},
+            ${metrics.opsInsert ?? null}, ${metrics.opsQuery ?? null},
+            ${metrics.opsUpdate ?? null}, ${metrics.opsDelete ?? null}, ${metrics.opsCommand ?? null},
+            ${metrics.replLagSeconds ?? null}, ${metrics.dataSizeBytes ?? null},
+            ${metrics.indexSizeBytes ?? null}, ${metrics.storageSizeBytes ?? null},
+            ${metrics.oplogWindowHours ?? null}, ${metrics.wtCacheUsedBytes ?? null},
+            ${metrics.wtCacheMaxBytes ?? null}
+          )
+        `;
+      } else {
+        throw err;
+      }
+    }
 
     this.app.log.debug({ nodeId: metrics.nodeId }, "MongoDB metrics ingested");
   }
@@ -88,20 +114,28 @@ export class MetricsIngestionService {
   async ingestMongodbReplEvents(events: MongodbReplEventInput[]): Promise<void> {
     if (events.length === 0) return;
 
-    for (const event of events) {
-      const timestamp = event.timestamp || new Date().toISOString();
-      await this.app.sql`
-        INSERT INTO mongodb_repl_events (
-          time, node_id, event_type, old_role, new_role, details
-        ) VALUES (
-          ${timestamp}, ${event.nodeId}, ${event.eventType},
-          ${event.oldRole ?? null}, ${event.newRole ?? null},
-          ${event.details ? JSON.stringify(event.details) : null}
-        )
-      `;
+    try {
+      for (const event of events) {
+        const timestamp = event.timestamp || new Date().toISOString();
+        await this.app.sql`
+          INSERT INTO mongodb_repl_events (
+            time, node_id, event_type, old_role, new_role, details
+          ) VALUES (
+            ${timestamp}, ${event.nodeId}, ${event.eventType},
+            ${event.oldRole ?? null}, ${event.newRole ?? null},
+            ${event.details ? JSON.stringify(event.details) : null}
+          )
+        `;
+      }
+      this.app.log.debug({ count: events.length }, "MongoDB repl events ingested");
+    } catch (err: any) {
+      // 42P01 = undefined_table — mongodb_repl_events not created yet
+      if (err?.code === "42P01") {
+        this.app.log.warn("mongodb_repl_events table not yet created, skipping event ingestion");
+        return;
+      }
+      throw err;
     }
-
-    this.app.log.debug({ count: events.length }, "MongoDB repl events ingested");
   }
 
   async ingestRedisMetrics(metrics: RedisMetricsInput): Promise<void> {
