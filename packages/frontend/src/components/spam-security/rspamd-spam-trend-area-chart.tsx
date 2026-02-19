@@ -33,16 +33,16 @@ export function RspamdSpamTrendAreaChart() {
     },
     legend: {
       data: ["Ham", "Spam", "Greylist", "Rejected"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Messages",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {
@@ -51,7 +51,7 @@ export function RspamdSpamTrendAreaChart() {
         stack: "total",
         areaStyle: { opacity: 0.6 },
         data: (data || []).map((d) => [d.bucket, d.ham]),
-        color: "oklch(0.72 0.19 142)",
+        color: "#51c148",
         smooth: true,
       },
       {
@@ -60,7 +60,7 @@ export function RspamdSpamTrendAreaChart() {
         stack: "total",
         areaStyle: { opacity: 0.6 },
         data: (data || []).map((d) => [d.bucket, d.spam]),
-        color: "oklch(0.85 0.15 85)",
+        color: "#fac547",
         smooth: true,
       },
       {
@@ -69,7 +69,7 @@ export function RspamdSpamTrendAreaChart() {
         stack: "total",
         areaStyle: { opacity: 0.6 },
         data: (data || []).map((d) => [d.bucket, d.greylist]),
-        color: "oklch(0.75 0.12 220)",
+        color: "#3dbfe2",
         smooth: true,
       },
       {
@@ -78,7 +78,7 @@ export function RspamdSpamTrendAreaChart() {
         stack: "total",
         areaStyle: { opacity: 0.6 },
         data: (data || []).map((d) => [d.bucket, d.rejected]),
-        color: "oklch(0.70 0.20 25)",
+        color: "#ff5f5b",
         smooth: true,
       },
     ],

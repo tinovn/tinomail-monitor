@@ -35,11 +35,11 @@ export function MultiNodeComparisonOverlayChart({
   });
 
   const colors = [
-    "oklch(0.65 0.25 250)",
-    "oklch(0.72 0.19 142)",
-    "oklch(0.70 0.20 25)",
-    "oklch(0.85 0.15 85)",
-    "oklch(0.60 0.20 300)",
+    "#008dff",
+    "#51c148",
+    "#ff5f5b",
+    "#fac547",
+    "#955be3",
   ];
 
   const groupedData = (data || []).reduce(
@@ -68,16 +68,16 @@ export function MultiNodeComparisonOverlayChart({
     },
     legend: {
       data: Object.keys(groupedData),
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: metric.toUpperCase(),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series,
   };

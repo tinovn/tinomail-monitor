@@ -58,44 +58,44 @@ export function WiredtigerCacheGaugeChart({ nodes }: WiredtigerCacheGaugeChartPr
           lineStyle: {
             width: 8,
             color: [
-              [0.7, "oklch(0.65 0.15 150)"],
-              [0.9, "oklch(0.70 0.15 80)"],
-              [1, "oklch(0.65 0.15 25)"],
+              [0.7, "#3aa85b"],
+              [0.9, "#ce9200"],
+              [1, "#dc655f"],
             ],
           },
         },
         pointer: {
-          itemStyle: { color: "oklch(0.58 0.015 270)" },
+          itemStyle: { color: "#777a84" },
           width: 3,
           length: "60%",
         },
         axisTick: {
           distance: -8,
           length: 4,
-          lineStyle: { color: "oklch(0.58 0.015 270)", width: 1 },
+          lineStyle: { color: "#777a84", width: 1 },
         },
         splitLine: {
           distance: -10,
           length: 8,
-          lineStyle: { color: "oklch(0.58 0.015 270)", width: 1 },
+          lineStyle: { color: "#777a84", width: 1 },
         },
         axisLabel: {
           distance: 12,
-          color: "oklch(0.58 0.015 270)",
+          color: "#777a84",
           fontSize: 9,
           formatter: (value: number) => `${value}%`,
         },
         detail: {
           valueAnimation: true,
           formatter: "{value}%",
-          color: "oklch(0.58 0.015 270)",
+          color: "#777a84",
           fontSize: 12,
           offsetCenter: [0, "80%"],
         },
         title: {
           offsetCenter: [0, "-20%"],
           fontSize: 10,
-          color: "oklch(0.58 0.015 270)",
+          color: "#777a84",
         },
         data: [{ value: percentage, name: node.nodeId }],
       };

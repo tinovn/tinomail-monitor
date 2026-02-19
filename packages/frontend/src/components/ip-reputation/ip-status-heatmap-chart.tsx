@@ -37,10 +37,10 @@ export function IpStatusHeatmapChart() {
   const scatterData = subnets.flatMap((subnet, subnetIdx) =>
     groupedBySubnet[subnet].map((ip, ipIdx) => {
       const colorMap = {
-        clean: "oklch(0.72 0.19 142)", // green
-        warning: "oklch(0.85 0.15 85)", // yellow
-        critical: "oklch(0.70 0.20 25)", // red
-        inactive: "oklch(0.5 0.01 285)", // gray
+        clean: "#51c148", // green
+        warning: "#fac547", // yellow
+        critical: "#ff5f5b", // red
+        inactive: "#626369", // gray
       };
       return {
         value: [subnetIdx, ipIdx, ip.blacklist_count],
@@ -66,7 +66,7 @@ export function IpStatusHeatmapChart() {
     },
     legend: {
       data: ["Clean", "Warning", "Critical", "Inactive"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
       bottom: 10,
     },
     grid: {
@@ -79,7 +79,7 @@ export function IpStatusHeatmapChart() {
       type: "category",
       data: subnets,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         rotate: 45,
         fontSize: 10,
       },
@@ -89,10 +89,10 @@ export function IpStatusHeatmapChart() {
       type: "value",
       max: maxIpsPerSubnet,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: (value: number) => `IP ${value + 1}`,
       },
-      splitLine: { lineStyle: { color: "oklch(0.3 0.01 285)" } },
+      splitLine: { lineStyle: { color: "#2d2d33" } },
     },
     series: [
       {
@@ -100,28 +100,28 @@ export function IpStatusHeatmapChart() {
         type: "scatter",
         symbolSize: 16,
         data: scatterData.filter((d) => d.status === "clean"),
-        itemStyle: { color: "oklch(0.72 0.19 142)" },
+        itemStyle: { color: "#51c148" },
       },
       {
         name: "Warning",
         type: "scatter",
         symbolSize: 16,
         data: scatterData.filter((d) => d.status === "warning"),
-        itemStyle: { color: "oklch(0.85 0.15 85)" },
+        itemStyle: { color: "#fac547" },
       },
       {
         name: "Critical",
         type: "scatter",
         symbolSize: 16,
         data: scatterData.filter((d) => d.status === "critical"),
-        itemStyle: { color: "oklch(0.70 0.20 25)" },
+        itemStyle: { color: "#ff5f5b" },
       },
       {
         name: "Inactive",
         type: "scatter",
         symbolSize: 12,
         data: scatterData.filter((d) => d.status === "inactive"),
-        itemStyle: { color: "oklch(0.5 0.01 285)" },
+        itemStyle: { color: "#626369" },
       },
     ],
   };

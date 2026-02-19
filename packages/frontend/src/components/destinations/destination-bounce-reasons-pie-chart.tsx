@@ -25,17 +25,17 @@ export function DestinationBounceReasonsPieChart({
       text: "Bounce Reasons",
       left: "center",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         fontSize: 14,
         fontWeight: 600,
       },
     },
     tooltip: {
       trigger: "item",
-      backgroundColor: "oklch(0.234 0.017 285)",
-      borderColor: "oklch(0.316 0.017 285)",
+      backgroundColor: "#1d1d26",
+      borderColor: "#31313a",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
       },
       formatter: "{b}: {c} ({d}%)",
     },
@@ -44,7 +44,7 @@ export function DestinationBounceReasonsPieChart({
       right: 10,
       top: "center",
       textStyle: {
-        color: "oklch(0.629 0.017 285)",
+        color: "#878893",
       },
     },
     series: [
@@ -55,7 +55,7 @@ export function DestinationBounceReasonsPieChart({
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 8,
-          borderColor: "oklch(0.234 0.017 285)",
+          borderColor: "#1d1d26",
           borderWidth: 2,
         },
         label: {
@@ -66,16 +66,16 @@ export function DestinationBounceReasonsPieChart({
             show: true,
             fontSize: 14,
             fontWeight: "bold",
-            color: "oklch(0.895 0.013 285)",
+            color: "#dbdbe5",
           },
         },
         data: chartData,
         color: [
-          "oklch(0.627 0.223 29)",   // Red
-          "oklch(0.754 0.166 83)",   // Yellow
-          "oklch(0.711 0.194 231)",  // Blue
-          "oklch(0.646 0.168 154)",  // Green
-          "oklch(0.719 0.186 328)",  // Purple
+          "#f1372b",   // Red
+          "#e2a300",   // Yellow
+          "#00b3ff",  // Blue
+          "#3aa85b",  // Green
+          "#e074de",  // Purple
         ],
       },
     ],

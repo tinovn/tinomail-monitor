@@ -32,13 +32,13 @@ export function BounceRateTrendLineChart() {
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Bounce Rate (%)",
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: "{value}%",
       },
     },
@@ -46,17 +46,17 @@ export function BounceRateTrendLineChart() {
       {
         type: "line",
         data: (data || []).map((d) => [d.time, d.bounceRate]),
-        color: "oklch(0.70 0.20 25)",
+        color: "#ff5f5b",
         smooth: true,
         markLine: {
           data: [{ yAxis: 5, name: "5% Threshold" }],
           lineStyle: {
-            color: "oklch(0.85 0.15 85)",
+            color: "#fac547",
             type: "dashed",
           },
           label: {
             formatter: "Threshold: 5%",
-            color: "oklch(0.895 0.013 285)",
+            color: "#dbdbe5",
           },
         },
       },

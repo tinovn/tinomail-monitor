@@ -15,11 +15,11 @@ interface GridfsStorageBreakdownStackedBarChartProps {
 }
 
 const SEGMENTS = [
-  { key: "gridfsMessagesBytes",     label: "Messages",       color: "oklch(0.62 0.18 250)" },
-  { key: "gridfsAttachFilesBytes",  label: "Attach Files",   color: "oklch(0.65 0.15 150)" },
-  { key: "gridfsAttachChunksBytes", label: "Attach Chunks",  color: "oklch(0.68 0.14 80)"  },
-  { key: "gridfsStorageFilesBytes", label: "Storage Files",  color: "oklch(0.60 0.15 300)" },
-  { key: "gridfsStorageChunksBytes",label: "Storage Chunks", color: "oklch(0.65 0.13 25)"  },
+  { key: "gridfsMessagesBytes",     label: "Messages",       color: "#0089ed" },
+  { key: "gridfsAttachFilesBytes",  label: "Attach Files",   color: "#3aa85b" },
+  { key: "gridfsAttachChunksBytes", label: "Attach Chunks",  color: "#c58d04"  },
+  { key: "gridfsStorageFilesBytes", label: "Storage Files",  color: "#8f68cb" },
+  { key: "gridfsStorageChunksBytes",label: "Storage Chunks", color: "#d36c66"  },
 ] as const;
 
 function formatBytes(bytes: number): string {
@@ -53,14 +53,14 @@ export function GridfsStorageBreakdownStackedBarChart({
     },
     legend: {
       data: SEGMENTS.map((s) => s.label),
-      textStyle: { color: "oklch(0.58 0.015 270)", fontSize: 10 },
+      textStyle: { color: "#777a84", fontSize: 10 },
       top: 0,
     },
     grid: { left: "3%", right: "3%", bottom: "6%", top: "15%", containLabel: true },
     xAxis: {
       type: "value",
       axisLabel: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
         formatter: (val: number) => {
           if (val >= 1e9) return `${(val / 1e9).toFixed(1)}GB`;
@@ -72,7 +72,7 @@ export function GridfsStorageBreakdownStackedBarChart({
     yAxis: {
       type: "category",
       data: ["WildDuck Storage"],
-      axisLabel: { color: "oklch(0.58 0.015 270)", fontSize: 10 },
+      axisLabel: { color: "#777a84", fontSize: 10 },
     },
     series: SEGMENTS.map((s) => ({
       name: s.label,

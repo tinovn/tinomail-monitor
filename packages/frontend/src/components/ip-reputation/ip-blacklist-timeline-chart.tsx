@@ -33,7 +33,7 @@ export function IpBlacklistTimelineChart({ ip, days = 7 }: IpBlacklistTimelineCh
       event.tier,
     ],
     itemStyle: {
-      color: event.event_type === "listed" ? "oklch(0.70 0.20 25)" : "oklch(0.72 0.19 142)",
+      color: event.event_type === "listed" ? "#ff5f5b" : "#51c148",
     },
   }));
 
@@ -54,7 +54,7 @@ export function IpBlacklistTimelineChart({ ip, days = 7 }: IpBlacklistTimelineCh
     },
     legend: {
       data: ["Listed", "Delisted"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     grid: {
       left: 150,
@@ -64,14 +64,14 @@ export function IpBlacklistTimelineChart({ ip, days = 7 }: IpBlacklistTimelineCh
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
-      splitLine: { lineStyle: { color: "oklch(0.3 0.01 285)" } },
+      axisLabel: { color: "#dbdbe5" },
+      splitLine: { lineStyle: { color: "#2d2d33" } },
     },
     yAxis: {
       type: "category",
       data: blacklists,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         fontSize: 11,
       },
       splitLine: { show: false },

@@ -31,17 +31,17 @@ export function DomainVolumeTrendLineChart({
       text: "30-Day Volume Trend",
       left: "center",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         fontSize: 14,
         fontWeight: 600,
       },
     },
     tooltip: {
       trigger: "axis",
-      backgroundColor: "oklch(0.234 0.017 285)",
-      borderColor: "oklch(0.316 0.017 285)",
+      backgroundColor: "#1d1d26",
+      borderColor: "#31313a",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
       },
       formatter: (params: any) => {
         const date = params[0].name;
@@ -55,20 +55,20 @@ export function DomainVolumeTrendLineChart({
       data: ["Delivered", "Bounced"],
       top: 30,
       textStyle: {
-        color: "oklch(0.629 0.017 285)",
+        color: "#878893",
       },
     },
     xAxis: {
       type: "category",
       data: timestamps,
-      axisLine: { lineStyle: { color: "oklch(0.316 0.017 285)" } },
-      axisLabel: { color: "oklch(0.629 0.017 285)", rotate: 45 },
+      axisLine: { lineStyle: { color: "#31313a" } },
+      axisLabel: { color: "#878893", rotate: 45 },
     },
     yAxis: {
       type: "value",
-      axisLine: { lineStyle: { color: "oklch(0.316 0.017 285)" } },
-      axisLabel: { color: "oklch(0.629 0.017 285)" },
-      splitLine: { lineStyle: { color: "oklch(0.234 0.017 285)" } },
+      axisLine: { lineStyle: { color: "#31313a" } },
+      axisLabel: { color: "#878893" },
+      splitLine: { lineStyle: { color: "#1d1d26" } },
     },
     series: [
       {
@@ -89,16 +89,16 @@ export function DomainVolumeTrendLineChart({
             ],
           },
         },
-        lineStyle: { color: "oklch(0.646 0.168 154)", width: 2 },
-        itemStyle: { color: "oklch(0.646 0.168 154)" },
+        lineStyle: { color: "#3aa85b", width: 2 },
+        itemStyle: { color: "#3aa85b" },
       },
       {
         name: "Bounced",
         type: "line",
         data: bounced,
         smooth: true,
-        lineStyle: { color: "oklch(0.627 0.223 29)", width: 2 },
-        itemStyle: { color: "oklch(0.627 0.223 29)" },
+        lineStyle: { color: "#f1372b", width: 2 },
+        itemStyle: { color: "#f1372b" },
       },
     ],
   };

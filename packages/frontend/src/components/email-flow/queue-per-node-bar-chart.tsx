@@ -46,12 +46,12 @@ export function QueuePerNodeBarChart() {
     },
     xAxis: {
       type: "value",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "category",
       data: data.map((d) => d.node),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {

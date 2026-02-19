@@ -30,23 +30,23 @@ export function AuthSuccessFailTrendChart() {
     },
     legend: {
       data: ["Success", "Failed"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Attempts",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {
         name: "Success",
         type: "line",
         data: (data || []).map((d) => [d.bucket, d.success]),
-        color: "oklch(0.72 0.19 142)",
+        color: "#51c148",
         smooth: true,
         lineStyle: { width: 2 },
       },
@@ -54,7 +54,7 @@ export function AuthSuccessFailTrendChart() {
         name: "Failed",
         type: "line",
         data: (data || []).map((d) => [d.bucket, d.fail]),
-        color: "oklch(0.70 0.20 25)",
+        color: "#ff5f5b",
         smooth: true,
         lineStyle: { width: 2 },
       },

@@ -102,7 +102,7 @@ function DeliveryGauge({ label, value, max }: DeliveryGaugeProps) {
         },
         axisLabel: {
           distance: 25,
-          color: "oklch(0.895 0.013 285)",
+          color: "#dbdbe5",
           fontSize: 12,
           formatter: (value: number) => `${(value / 1000).toFixed(0)}s`,
         },

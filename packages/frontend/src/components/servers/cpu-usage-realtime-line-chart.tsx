@@ -36,14 +36,14 @@ export function CpuUsageRealtimeLineChart({ nodeId }: CpuUsageRealtimeLineChartP
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "CPU Usage (%)",
       max: 100,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: "{value}%",
       },
     },
@@ -51,7 +51,7 @@ export function CpuUsageRealtimeLineChart({ nodeId }: CpuUsageRealtimeLineChartP
       {
         type: "line",
         data: (data || []).map((d) => [d.time, d.value]),
-        color: "oklch(0.65 0.25 250)",
+        color: "#008dff",
         smooth: true,
         areaStyle: { opacity: 0.2 },
       },

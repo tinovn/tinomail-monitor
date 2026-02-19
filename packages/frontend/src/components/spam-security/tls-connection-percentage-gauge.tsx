@@ -26,10 +26,10 @@ export function TlsConnectionPercentageGauge() {
   const percent = data?.tlsPercent || 0;
   const color =
     percent >= 90
-      ? "oklch(0.72 0.19 142)"
+      ? "#51c148"
       : percent >= 70
-        ? "oklch(0.85 0.15 85)"
-        : "oklch(0.70 0.20 25)";
+        ? "#fac547"
+        : "#ff5f5b";
 
   const option: EChartsOption = {
     series: [
@@ -45,22 +45,22 @@ export function TlsConnectionPercentageGauge() {
           lineStyle: {
             width: 20,
             color: [
-              [0.7, "oklch(0.70 0.20 25)"],
-              [0.9, "oklch(0.85 0.15 85)"],
-              [1, "oklch(0.72 0.19 142)"],
+              [0.7, "#ff5f5b"],
+              [0.9, "#fac547"],
+              [1, "#51c148"],
             ],
           },
         },
         pointer: {
           itemStyle: {
-            color: "oklch(0.895 0.013 285)",
+            color: "#dbdbe5",
           },
         },
         axisTick: {
           distance: -20,
           length: 6,
           lineStyle: {
-            color: "oklch(0.895 0.013 285)",
+            color: "#dbdbe5",
             width: 1,
           },
         },
@@ -68,12 +68,12 @@ export function TlsConnectionPercentageGauge() {
           distance: -20,
           length: 20,
           lineStyle: {
-            color: "oklch(0.895 0.013 285)",
+            color: "#dbdbe5",
             width: 2,
           },
         },
         axisLabel: {
-          color: "oklch(0.895 0.013 285)",
+          color: "#dbdbe5",
           distance: 25,
           fontSize: 12,
           formatter: (value: number) => `${value}%`,

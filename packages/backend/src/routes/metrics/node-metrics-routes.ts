@@ -53,7 +53,8 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
       const rows = await app.sql`
         SELECT
           time,
-          ram_percent
+          ram_percent,
+          ram_used_bytes
         FROM metrics_system
         WHERE node_id = ${nodeId}
           AND time >= ${from}::timestamptz
@@ -65,6 +66,7 @@ export default async function nodeMetricsRoutes(app: FastifyInstance) {
         time: new Date(r.time as string | Date).toISOString(),
         usedPercent: Number(r.ram_percent) || 0,
         freePercent: Math.round((100 - (Number(r.ram_percent) || 0)) * 10) / 10,
+        ramUsedBytes: Number(r.ram_used_bytes) || null,
       }));
 
       const response: ApiResponse<typeof data> = { success: true, data };

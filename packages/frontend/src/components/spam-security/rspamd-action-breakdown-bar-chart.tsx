@@ -23,10 +23,10 @@ export function RspamdActionBreakdownBarChart() {
   });
 
   const actionColors: Record<string, string> = {
-    "no action": "oklch(0.72 0.19 142)",
-    "add header": "oklch(0.85 0.15 85)",
-    greylist: "oklch(0.75 0.12 220)",
-    reject: "oklch(0.70 0.20 25)",
+    "no action": "#51c148",
+    "add header": "#fac547",
+    greylist: "#3dbfe2",
+    reject: "#ff5f5b",
   };
 
   const option: EChartsOption = {
@@ -36,12 +36,12 @@ export function RspamdActionBreakdownBarChart() {
     },
     xAxis: {
       type: "value",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "category",
       data: (data || []).map((d) => d.action),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {
@@ -50,13 +50,13 @@ export function RspamdActionBreakdownBarChart() {
         data: (data || []).map((d) => ({
           value: d.count,
           itemStyle: {
-            color: actionColors[d.action.toLowerCase()] || "oklch(0.75 0.12 220)",
+            color: actionColors[d.action.toLowerCase()] || "#3dbfe2",
           },
         })),
         label: {
           show: true,
           position: "right",
-          color: "oklch(0.895 0.013 285)",
+          color: "#dbdbe5",
           formatter: (params: any) => params.value.toLocaleString(),
         },
       },

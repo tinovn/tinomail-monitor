@@ -61,7 +61,7 @@ export function DeferredReasonsPieChart() {
     legend: {
       orient: "vertical",
       left: "left",
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     series: [
       {
@@ -77,7 +77,7 @@ export function DeferredReasonsPieChart() {
         label: {
           show: true,
           formatter: "{b}: {d}%",
-          color: "oklch(0.895 0.013 285)",
+          color: "#dbdbe5",
         },
         emphasis: {
           label: {

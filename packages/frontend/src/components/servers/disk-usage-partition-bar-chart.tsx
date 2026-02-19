@@ -35,14 +35,14 @@ export function DiskUsagePartitionBarChart({ nodeId }: DiskUsagePartitionBarChar
     xAxis: {
       type: "category",
       data: (data || []).map((d) => d.partition),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Usage (%)",
       max: 100,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: "{value}%",
       },
     },
@@ -50,7 +50,7 @@ export function DiskUsagePartitionBarChart({ nodeId }: DiskUsagePartitionBarChar
       {
         type: "bar",
         data: (data || []).map((d) => d.usedPercent),
-        color: "oklch(0.65 0.25 250)",
+        color: "#008dff",
         itemStyle: {
           borderRadius: [4, 4, 0, 0],
         },

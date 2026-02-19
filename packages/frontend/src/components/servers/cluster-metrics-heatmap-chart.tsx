@@ -60,14 +60,14 @@ export function ClusterMetricsHeatmapChart({ metric, bucket }: ClusterMetricsHea
       type: "category",
       data: times.map((t) => format(new Date(t), "HH:mm")),
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         rotate: 45,
       },
     },
     yAxis: {
       type: "category",
       data: nodes,
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     visualMap: {
       min: 0,
@@ -78,12 +78,12 @@ export function ClusterMetricsHeatmapChart({ metric, bucket }: ClusterMetricsHea
       bottom: "5%",
       inRange: {
         color: [
-          "oklch(0.72 0.19 142)",
-          "oklch(0.85 0.15 85)",
-          "oklch(0.70 0.20 25)",
+          "#51c148",
+          "#fac547",
+          "#ff5f5b",
         ],
       },
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     series: [
       {

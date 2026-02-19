@@ -45,7 +45,7 @@ export function OpsPerSecStackedAreaChart() {
     legend: {
       data: ["Insert", "Query", "Update", "Delete", "Command"],
       textStyle: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       top: 0,
@@ -71,11 +71,11 @@ export function OpsPerSecStackedAreaChart() {
 
 function buildStackedSeries(metrics: MongodbMetric[]): any[] {
   const opTypes = [
-    { key: "opsInsert" as const, name: "Insert", color: "oklch(0.65 0.15 150)" },
-    { key: "opsQuery" as const, name: "Query", color: "oklch(0.65 0.15 220)" },
-    { key: "opsUpdate" as const, name: "Update", color: "oklch(0.70 0.15 80)" },
-    { key: "opsDelete" as const, name: "Delete", color: "oklch(0.65 0.15 25)" },
-    { key: "opsCommand" as const, name: "Command", color: "oklch(0.60 0.15 290)" },
+    { key: "opsInsert" as const, name: "Insert", color: "#3aa85b" },
+    { key: "opsQuery" as const, name: "Query", color: "#00a2ce" },
+    { key: "opsUpdate" as const, name: "Update", color: "#ce9200" },
+    { key: "opsDelete" as const, name: "Delete", color: "#dc655f" },
+    { key: "opsCommand" as const, name: "Command", color: "#816dd2" },
   ];
 
   return opTypes.map((opType) => {

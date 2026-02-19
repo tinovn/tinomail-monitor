@@ -8,14 +8,14 @@ import "./styles/globals.css";
 echarts.registerTheme("dark", {
   backgroundColor: "transparent",
   textStyle: {
-    color: "oklch(0.895 0.013 285)",
+    color: "#dbdbe5",
   },
   color: [
-    "oklch(0.623 0.214 259)",
-    "oklch(0.696 0.17 162)",
-    "oklch(0.795 0.184 86)",
-    "oklch(0.637 0.237 25)",
-    "oklch(0.551 0.027 264)",
+    "#2580ff",
+    "#00bc7c",
+    "#f0b100",
+    "#fb2c38",
+    "#6a7282",
   ],
 });
 

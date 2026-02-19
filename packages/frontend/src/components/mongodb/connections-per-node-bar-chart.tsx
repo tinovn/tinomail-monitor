@@ -38,7 +38,7 @@ export function ConnectionsPerNodeBarChart({
     legend: {
       data: ["Current", "Available"],
       textStyle: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       top: 0,
@@ -64,7 +64,7 @@ export function ConnectionsPerNodeBarChart({
         stack: "total",
         data: nodes.map((n) => n.connectionsCurrent || 0),
         itemStyle: {
-          color: "oklch(0.65 0.15 220)",
+          color: "#00a2ce",
         },
         emphasis: {
           focus: "series",
@@ -76,7 +76,7 @@ export function ConnectionsPerNodeBarChart({
         stack: "total",
         data: nodes.map((n) => n.connectionsAvailable || 0),
         itemStyle: {
-          color: "oklch(0.30 0.015 270)",
+          color: "#2b2e36",
         },
         emphasis: {
           focus: "series",

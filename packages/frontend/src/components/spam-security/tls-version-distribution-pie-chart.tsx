@@ -30,7 +30,7 @@ export function TlsVersionDistributionPieChart() {
     legend: {
       orient: "vertical",
       left: "left",
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     series: [
       {
@@ -40,12 +40,12 @@ export function TlsVersionDistributionPieChart() {
         avoidLabelOverlap: false,
         itemStyle: {
           borderRadius: 8,
-          borderColor: "oklch(0.22 0.013 285)",
+          borderColor: "#1a1a21",
           borderWidth: 2,
         },
         label: {
           show: true,
-          color: "oklch(0.895 0.013 285)",
+          color: "#dbdbe5",
           formatter: "{b}: {d}%",
         },
         emphasis: {
@@ -61,10 +61,10 @@ export function TlsVersionDistributionPieChart() {
           itemStyle: {
             color:
               d.version === "TLS 1.3"
-                ? "oklch(0.72 0.19 142)"
+                ? "#51c148"
                 : d.version === "TLS 1.2"
-                  ? "oklch(0.75 0.12 220)"
-                  : "oklch(0.70 0.20 25)",
+                  ? "#3dbfe2"
+                  : "#ff5f5b",
           },
         })),
       },

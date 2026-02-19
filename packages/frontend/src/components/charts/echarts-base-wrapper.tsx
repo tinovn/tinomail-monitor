@@ -39,7 +39,7 @@ export function EchartsBaseWrapper({
   const darkTheme: EChartsOption = {
     backgroundColor: "transparent",
     textStyle: {
-      color: "oklch(0.58 0.015 270)",
+      color: "#777a84",
       fontSize: 10,
     },
     grid: {
@@ -56,33 +56,33 @@ export function EchartsBaseWrapper({
     },
     xAxis: {
       axisLabel: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       axisLine: {
         lineStyle: {
-          color: "oklch(0.22 0.014 270)",
+          color: "#181a21",
         },
       },
       splitLine: {
         lineStyle: {
-          color: "oklch(0.22 0.014 270)",
+          color: "#181a21",
         },
       },
     },
     yAxis: {
       axisLabel: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       axisLine: {
         lineStyle: {
-          color: "oklch(0.22 0.014 270)",
+          color: "#181a21",
         },
       },
       splitLine: {
         lineStyle: {
-          color: "oklch(0.22 0.014 270)",
+          color: "#181a21",
         },
       },
     },

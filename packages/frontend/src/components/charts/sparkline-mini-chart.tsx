@@ -12,7 +12,7 @@ interface SparklineMiniChartProps {
 
 export function SparklineMiniChart({
   data,
-  color = "oklch(0.623 0.214 259)",
+  color = "#2580ff",
   height,
   className,
   variant = "standalone",

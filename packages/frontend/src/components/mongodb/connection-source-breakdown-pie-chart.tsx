@@ -15,11 +15,11 @@ interface ConnectionSourceBreakdownPieChartProps {
 }
 
 const SEGMENTS = [
-  { key: "connAppImap",       label: "IMAP",       color: "oklch(0.62 0.18 250)" },
-  { key: "connAppSmtp",       label: "SMTP",       color: "oklch(0.65 0.15 150)" },
-  { key: "connAppInternal",   label: "Internal",   color: "oklch(0.55 0.01 270)" },
-  { key: "connAppMonitoring", label: "Monitoring", color: "oklch(0.60 0.15 300)" },
-  { key: "connAppOther",      label: "Other",      color: "oklch(0.68 0.14 80)"  },
+  { key: "connAppImap",       label: "IMAP",       color: "#0089ed" },
+  { key: "connAppSmtp",       label: "SMTP",       color: "#3aa85b" },
+  { key: "connAppInternal",   label: "Internal",   color: "#6f7178" },
+  { key: "connAppMonitoring", label: "Monitoring", color: "#8f68cb" },
+  { key: "connAppOther",      label: "Other",      color: "#c58d04"  },
 ] as const;
 
 export function ConnectionSourceBreakdownPieChart({ data }: ConnectionSourceBreakdownPieChartProps) {
@@ -47,7 +47,7 @@ export function ConnectionSourceBreakdownPieChart({ data }: ConnectionSourceBrea
       orient: "vertical",
       right: "5%",
       top: "center",
-      textStyle: { color: "oklch(0.58 0.015 270)", fontSize: 10 },
+      textStyle: { color: "#777a84", fontSize: 10 },
     },
     graphic: [
       {
@@ -56,7 +56,7 @@ export function ConnectionSourceBreakdownPieChart({ data }: ConnectionSourceBrea
         top: "center",
         style: {
           text: String(total),
-          fill: "oklch(0.85 0.01 270)",
+          fill: "#cbced4",
           fontSize: 16,
           fontWeight: "bold",
         } as any,
@@ -67,7 +67,7 @@ export function ConnectionSourceBreakdownPieChart({ data }: ConnectionSourceBrea
         top: "58%",
         style: {
           text: "total",
-          fill: "oklch(0.58 0.015 270)",
+          fill: "#777a84",
           fontSize: 9,
         } as any,
       },

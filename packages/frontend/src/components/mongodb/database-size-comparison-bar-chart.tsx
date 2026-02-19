@@ -44,7 +44,7 @@ export function DatabaseSizeComparisonBarChart({
     legend: {
       data: ["Data Size", "Index Size", "Storage Size"],
       textStyle: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       top: 0,
@@ -75,7 +75,7 @@ export function DatabaseSizeComparisonBarChart({
         type: "bar",
         data: [primaryNode.dataSizeBytes || 0],
         itemStyle: {
-          color: "oklch(0.65 0.15 150)",
+          color: "#3aa85b",
         },
       },
       {
@@ -83,7 +83,7 @@ export function DatabaseSizeComparisonBarChart({
         type: "bar",
         data: [primaryNode.indexSizeBytes || 0],
         itemStyle: {
-          color: "oklch(0.65 0.15 220)",
+          color: "#00a2ce",
         },
       },
       {
@@ -91,7 +91,7 @@ export function DatabaseSizeComparisonBarChart({
         type: "bar",
         data: [primaryNode.storageSizeBytes || 0],
         itemStyle: {
-          color: "oklch(0.60 0.15 290)",
+          color: "#816dd2",
         },
       },
     ],

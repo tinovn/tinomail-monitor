@@ -41,10 +41,10 @@ export function ReplicaSetStatusPanel({ nodes }: ReplicaSetStatusPanelProps) {
         const sparklineData = lagSparklines?.[node.nodeId] ?? [];
         const sparklineColor =
           lagStatus === "critical"
-            ? "oklch(0.65 0.15 25)"
+            ? "#dc655f"
             : lagStatus === "warning"
-              ? "oklch(0.70 0.15 80)"
-              : "oklch(0.65 0.15 150)";
+              ? "#ce9200"
+              : "#3aa85b";
 
         return (
           <div

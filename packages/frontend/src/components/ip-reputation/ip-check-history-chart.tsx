@@ -49,7 +49,7 @@ export function IpCheckHistoryChart({ ip, hours = 24 }: IpCheckHistoryChartProps
       type: "line" as const,
       step: "end" as const,
       data: bl.data.map((d) => [d.time, d.listed ? 1 : 0]),
-      itemStyle: { color: "oklch(0.70 0.20 25)" },
+      itemStyle: { color: "#ff5f5b" },
       areaStyle: { opacity: 0.2 },
     }));
 
@@ -70,7 +70,7 @@ export function IpCheckHistoryChart({ ip, hours = 24 }: IpCheckHistoryChartProps
     },
     legend: {
       data: Object.keys(blacklistsMap).filter((name) => blacklistsMap[name].tier === "critical"),
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
       type: "scroll",
       bottom: 0,
     },
@@ -82,18 +82,18 @@ export function IpCheckHistoryChart({ ip, hours = 24 }: IpCheckHistoryChartProps
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
-      splitLine: { lineStyle: { color: "oklch(0.3 0.01 285)" } },
+      axisLabel: { color: "#dbdbe5" },
+      splitLine: { lineStyle: { color: "#2d2d33" } },
     },
     yAxis: {
       type: "value",
       min: 0,
       max: 1,
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: (value: number) => (value === 1 ? "Listed" : "Clean"),
       },
-      splitLine: { lineStyle: { color: "oklch(0.3 0.01 285)" } },
+      splitLine: { lineStyle: { color: "#2d2d33" } },
     },
     series: criticalSeries,
   };

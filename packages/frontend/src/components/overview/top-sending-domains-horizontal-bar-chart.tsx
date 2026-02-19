@@ -30,18 +30,18 @@ export function TopSendingDomainsHorizontalBarChart() {
     },
     xAxis: {
       type: "value",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "category",
       data: (data || []).map((d) => d.domain).reverse(),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {
         type: "bar",
         data: (data || []).map((d) => d.count).reverse(),
-        color: "oklch(0.65 0.25 250)",
+        color: "#008dff",
         itemStyle: {
           borderRadius: [0, 4, 4, 0],
         },

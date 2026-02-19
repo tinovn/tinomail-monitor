@@ -92,18 +92,18 @@ export function OutboundByNodeMultiChart() {
     },
     legend: {
       data: nodes,
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
       type: "scroll",
     },
     xAxis: {
       type: "category",
       boundaryGap: false,
       data: data.map((d) => new Date(d.time).toLocaleTimeString()),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: nodes.map((node, idx) => ({
       name: node,

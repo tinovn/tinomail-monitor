@@ -47,17 +47,17 @@ export function NetworkBandwidthDualAxisChart({ nodeId }: NetworkBandwidthDualAx
     },
     legend: {
       data: ["RX (Download)", "TX (Upload)"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Bandwidth",
       axisLabel: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         formatter: (value: number) => formatBytes(value),
       },
     },
@@ -66,7 +66,7 @@ export function NetworkBandwidthDualAxisChart({ nodeId }: NetworkBandwidthDualAx
         name: "RX (Download)",
         type: "line",
         data: (data || []).map((d) => [d.time, d.rxBytesPerSec]),
-        color: "oklch(0.72 0.19 142)",
+        color: "#51c148",
         smooth: true,
         areaStyle: { opacity: 0.3 },
       },
@@ -74,7 +74,7 @@ export function NetworkBandwidthDualAxisChart({ nodeId }: NetworkBandwidthDualAx
         name: "TX (Upload)",
         type: "line",
         data: (data || []).map((d) => [d.time, d.txBytesPerSec]),
-        color: "oklch(0.65 0.25 250)",
+        color: "#008dff",
         smooth: true,
         areaStyle: { opacity: 0.3 },
       },

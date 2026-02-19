@@ -47,11 +47,11 @@ export function DeliveryTimeHistogramChart() {
     xAxis: {
       type: "category",
       data: data.map((d) => d.label),
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {

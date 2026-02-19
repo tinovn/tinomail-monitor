@@ -38,7 +38,7 @@ export function ReplicationLagTimeseriesChart() {
     legend: {
       data: getNodeIds(metrics || []),
       textStyle: {
-        color: "oklch(0.58 0.015 270)",
+        color: "#777a84",
         fontSize: 10,
       },
       top: 0,
@@ -79,9 +79,9 @@ function buildSeries(metrics: MongodbMetric[]): any[] {
   });
 
   const colors = [
-    "oklch(0.65 0.15 150)",
-    "oklch(0.65 0.15 220)",
-    "oklch(0.60 0.15 290)",
+    "#3aa85b",
+    "#00a2ce",
+    "#816dd2",
   ];
 
   const series: any[] = [];
@@ -115,7 +115,7 @@ function buildSeries(metrics: MongodbMetric[]): any[] {
       symbol: "none",
       lineStyle: {
         type: "dashed",
-        color: "oklch(0.70 0.15 80)",
+        color: "#ce9200",
         width: 1,
       },
       data: [{ yAxis: 10 }],
@@ -134,7 +134,7 @@ function buildSeries(metrics: MongodbMetric[]): any[] {
       symbol: "none",
       lineStyle: {
         type: "dashed",
-        color: "oklch(0.65 0.15 25)",
+        color: "#dc655f",
         width: 1,
       },
       data: [{ yAxis: 30 }],

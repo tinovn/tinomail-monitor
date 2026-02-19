@@ -31,16 +31,16 @@ export function EmailThroughputAreaChart() {
     },
     legend: {
       data: ["Delivered", "Deferred", "Bounced"],
-      textStyle: { color: "oklch(0.895 0.013 285)" },
+      textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
       type: "time",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
       type: "value",
       name: "Emails",
-      axisLabel: { color: "oklch(0.895 0.013 285)" },
+      axisLabel: { color: "#dbdbe5" },
     },
     series: [
       {
@@ -48,7 +48,7 @@ export function EmailThroughputAreaChart() {
         type: "line",
         areaStyle: { opacity: 0.3 },
         data: (data || []).map((d) => [d.time, d.delivered]),
-        color: "oklch(0.72 0.19 142)",
+        color: "#51c148",
         smooth: true,
       },
       {
@@ -56,7 +56,7 @@ export function EmailThroughputAreaChart() {
         type: "line",
         areaStyle: { opacity: 0.3 },
         data: (data || []).map((d) => [d.time, d.deferred]),
-        color: "oklch(0.85 0.15 85)",
+        color: "#fac547",
         smooth: true,
       },
       {
@@ -64,7 +64,7 @@ export function EmailThroughputAreaChart() {
         type: "line",
         areaStyle: { opacity: 0.3 },
         data: (data || []).map((d) => [d.time, d.bounced]),
-        color: "oklch(0.70 0.20 25)",
+        color: "#ff5f5b",
         smooth: true,
       },
     ],

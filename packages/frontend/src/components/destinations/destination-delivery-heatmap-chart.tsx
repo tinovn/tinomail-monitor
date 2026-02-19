@@ -32,17 +32,17 @@ export function DestinationDeliveryHeatmapChart({
       text: "Best Sending Window (Hour × Weekday)",
       left: "center",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
         fontSize: 14,
         fontWeight: 600,
       },
     },
     tooltip: {
       position: "top",
-      backgroundColor: "oklch(0.234 0.017 285)",
-      borderColor: "oklch(0.316 0.017 285)",
+      backgroundColor: "#1d1d26",
+      borderColor: "#31313a",
       textStyle: {
-        color: "oklch(0.895 0.013 285)",
+        color: "#dbdbe5",
       },
       formatter: (params: any) => {
         const hour = hours[params.data[0]];
@@ -63,9 +63,9 @@ export function DestinationDeliveryHeatmapChart({
       splitArea: {
         show: true,
       },
-      axisLine: { lineStyle: { color: "oklch(0.316 0.017 285)" } },
+      axisLine: { lineStyle: { color: "#31313a" } },
       axisLabel: {
-        color: "oklch(0.629 0.017 285)",
+        color: "#878893",
         fontSize: 10,
         interval: 2,
       },
@@ -76,8 +76,8 @@ export function DestinationDeliveryHeatmapChart({
       splitArea: {
         show: true,
       },
-      axisLine: { lineStyle: { color: "oklch(0.316 0.017 285)" } },
-      axisLabel: { color: "oklch(0.629 0.017 285)" },
+      axisLine: { lineStyle: { color: "#31313a" } },
+      axisLabel: { color: "#878893" },
     },
     visualMap: {
       min: 0,
@@ -87,13 +87,13 @@ export function DestinationDeliveryHeatmapChart({
       left: "center",
       bottom: "0%",
       textStyle: {
-        color: "oklch(0.629 0.017 285)",
+        color: "#878893",
       },
       inRange: {
         color: [
-          "oklch(0.627 0.223 29)",   // Red (low)
-          "oklch(0.754 0.166 83)",   // Yellow (medium)
-          "oklch(0.646 0.168 154)",  // Green (high)
+          "#f1372b",   // Red (low)
+          "#e2a300",   // Yellow (medium)
+          "#3aa85b",  // Green (high)
         ],
       },
     },
