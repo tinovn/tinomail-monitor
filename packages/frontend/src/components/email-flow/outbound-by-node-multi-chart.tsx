@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
 import { apiClient } from "@/lib/api-http-client";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface NodeThroughput {
   time: string;
@@ -17,18 +17,17 @@ interface NodeThroughputRow {
 }
 
 export function OutboundByNodeMultiChart() {
-  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [data, setData] = useState<NodeThroughput[]>([]);
   const [nodes, setNodes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchNodeThroughput = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
 
       const result = await apiClient.get<NodeThroughputRow[]>(
-        `/email/throughput?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}&by=node`
+        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}&by=node`
       );
 
       const { data: transformedData, nodes: nodeList } = transformNodeData(result);
@@ -39,7 +38,7 @@ export function OutboundByNodeMultiChart() {
     } finally {
       setLoading(false);
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchNodeThroughput();
@@ -48,10 +47,6 @@ export function OutboundByNodeMultiChart() {
       : undefined;
     return () => { if (interval) clearInterval(interval); };
   }, [fetchNodeThroughput, autoRefresh]);
-
-  useEffect(() => {
-    fetchNodeThroughput();
-  }, [from, to, fetchNodeThroughput]);
 
   const transformNodeData = (
     rawData: NodeThroughputRow[]

@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
 import { apiClient } from "@/lib/api-http-client";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface ThroughputData {
   time: string;
@@ -19,17 +19,16 @@ interface ThroughputRow {
 }
 
 export function OutboundThroughputStackedChart() {
-  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [data, setData] = useState<ThroughputData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchThroughputData = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
 
       const result = await apiClient.get<ThroughputRow[]>(
-        `/email/throughput?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
+        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}`
       );
 
       setData(transformData(result));
@@ -38,7 +37,7 @@ export function OutboundThroughputStackedChart() {
     } finally {
       setLoading(false);
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchThroughputData();
@@ -47,10 +46,6 @@ export function OutboundThroughputStackedChart() {
       : undefined;
     return () => { if (interval) clearInterval(interval); };
   }, [fetchThroughputData, autoRefresh]);
-
-  useEffect(() => {
-    fetchThroughputData();
-  }, [from, to, fetchThroughputData]);
 
   const transformData = (rawData: ThroughputRow[]): ThroughputData[] => {
     const grouped = new Map<string, ThroughputData>();

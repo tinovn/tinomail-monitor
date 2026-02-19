@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import { apiClient } from "@/lib/api-http-client";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface Counters {
   delivered: number;
@@ -11,7 +11,7 @@ interface Counters {
 }
 
 export function EmailFlowCounterCards() {
-  const { from, to, preset, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [counters, setCounters] = useState<Counters>({
     delivered: 0,
     bounced: 0,
@@ -21,10 +21,9 @@ export function EmailFlowCounterCards() {
 
   const fetchCounters = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
       const data = await apiClient.get<Array<{ group: string; count: string }>>(
-        `/email/stats?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}&groupBy=event_type`
+        `/email/stats?from=${from.toISOString()}&to=${to.toISOString()}&groupBy=event_type`
       );
 
       const initial: Counters = { delivered: 0, bounced: 0, deferred: 0, rejected: 0 };
@@ -38,7 +37,7 @@ export function EmailFlowCounterCards() {
     } catch {
       // Silently fail — WebSocket will still update
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchCounters();
@@ -46,12 +45,7 @@ export function EmailFlowCounterCards() {
       ? setInterval(fetchCounters, autoRefresh * 1000)
       : undefined;
     return () => { if (interval) clearInterval(interval); };
-  }, [fetchCounters, autoRefresh, preset]);
-
-  // Re-fetch when time range changes (user clicks preset)
-  useEffect(() => {
-    fetchCounters();
-  }, [from, to, fetchCounters]);
+  }, [fetchCounters, autoRefresh]);
 
   // WebSocket for real-time increments
   useEffect(() => {

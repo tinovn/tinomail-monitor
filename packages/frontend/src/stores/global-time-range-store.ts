@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { subHours, subDays } from "date-fns";
 
-type TimePreset = "1h" | "6h" | "24h" | "7d" | "30d" | "custom";
+export type TimePreset = "1h" | "6h" | "24h" | "7d" | "30d" | "custom";
 type AutoRefreshInterval = 15 | 30 | 60 | 300 | false;
 
 interface TimeRangeState {
@@ -15,11 +15,10 @@ interface TimeRangeActions {
   setPreset: (preset: TimePreset) => void;
   setCustomRange: (from: Date, to: Date) => void;
   setAutoRefresh: (interval: AutoRefreshInterval) => void;
-  /** Re-compute from/to based on current preset and update store */
-  refreshRange: () => void;
 }
 
-const getPresetRange = (preset: TimePreset): { from: Date; to: Date } => {
+/** Compute fresh from/to for a preset (pure function, no store mutation) */
+export const getPresetRange = (preset: TimePreset): { from: Date; to: Date } => {
   const now = new Date();
   switch (preset) {
     case "1h":
@@ -55,13 +54,6 @@ export const useTimeRangeStore = create<TimeRangeState & TimeRangeActions>()(
 
     setAutoRefresh: (interval: AutoRefreshInterval) => {
       set({ autoRefresh: interval });
-    },
-
-    refreshRange: () => {
-      const { preset } = useTimeRangeStore.getState();
-      if (preset === "custom") return;
-      const range = getPresetRange(preset);
-      set({ ...range });
     },
   }),
 );

@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface DeliveryMetrics {
   avg: number;
@@ -10,7 +10,7 @@ interface DeliveryMetrics {
 }
 
 export function DeliveryTimeGaugeSet() {
-  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [metrics, setMetrics] = useState<DeliveryMetrics>({
     avg: 0,
     p95: 0,
@@ -19,11 +19,10 @@ export function DeliveryTimeGaugeSet() {
 
   const fetchDeliveryMetrics = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
 
       const response = await fetch(
-        `/api/v1/email/stats?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}&groupBy=event_type`
+        `/api/v1/email/stats?from=${from.toISOString()}&to=${to.toISOString()}&groupBy=event_type`
       );
       const result = await response.json();
 
@@ -43,7 +42,7 @@ export function DeliveryTimeGaugeSet() {
     } catch (error) {
       console.error("Failed to fetch delivery metrics:", error);
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchDeliveryMetrics();
@@ -52,10 +51,6 @@ export function DeliveryTimeGaugeSet() {
       : undefined;
     return () => { if (interval) clearInterval(interval); };
   }, [fetchDeliveryMetrics, autoRefresh]);
-
-  useEffect(() => {
-    fetchDeliveryMetrics();
-  }, [from, to, fetchDeliveryMetrics]);
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

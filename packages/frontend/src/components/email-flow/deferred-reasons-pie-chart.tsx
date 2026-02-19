@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface DeferredReason {
   reason: string;
@@ -10,17 +10,16 @@ interface DeferredReason {
 }
 
 export function DeferredReasonsPieChart() {
-  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [data, setData] = useState<DeferredReason[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchDeferredReasons = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
 
       const response = await fetch(
-        `/api/v1/email/bounce-analysis?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
+        `/api/v1/email/bounce-analysis?from=${from.toISOString()}&to=${to.toISOString()}`
       );
       const result = await response.json();
 
@@ -40,7 +39,7 @@ export function DeferredReasonsPieChart() {
     } finally {
       setLoading(false);
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchDeferredReasons();
@@ -49,10 +48,6 @@ export function DeferredReasonsPieChart() {
       : undefined;
     return () => { if (interval) clearInterval(interval); };
   }, [fetchDeferredReasons, autoRefresh]);
-
-  useEffect(() => {
-    fetchDeferredReasons();
-  }, [from, to, fetchDeferredReasons]);
 
   const option: EChartsOption = {
     tooltip: {

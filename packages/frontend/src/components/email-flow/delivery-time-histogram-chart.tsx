@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
-import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { useTimeRangeStore, getPresetRange } from "@/stores/global-time-range-store";
 
 interface TimeBucket {
   label: string;
@@ -19,17 +19,16 @@ const EMPTY_BUCKETS: TimeBucket[] = [
 ];
 
 export function DeliveryTimeHistogramChart() {
-  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const { preset, autoRefresh } = useTimeRangeStore();
   const [data, setData] = useState<TimeBucket[]>(EMPTY_BUCKETS);
   const [loading, setLoading] = useState(true);
 
   const fetchHistogramData = useCallback(async () => {
     try {
-      refreshRange();
-      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
+      const { from, to } = getPresetRange(preset);
 
       const response = await fetch(
-        `/api/v1/email/delivery-histogram?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
+        `/api/v1/email/delivery-histogram?from=${from.toISOString()}&to=${to.toISOString()}`
       );
       const result = await response.json();
 
@@ -44,7 +43,7 @@ export function DeliveryTimeHistogramChart() {
     } finally {
       setLoading(false);
     }
-  }, [refreshRange]);
+  }, [preset]);
 
   useEffect(() => {
     fetchHistogramData();
@@ -53,10 +52,6 @@ export function DeliveryTimeHistogramChart() {
       : undefined;
     return () => { if (interval) clearInterval(interval); };
   }, [fetchHistogramData, autoRefresh]);
-
-  useEffect(() => {
-    fetchHistogramData();
-  }, [from, to, fetchHistogramData]);
 
   const option: EChartsOption = {
     tooltip: {
