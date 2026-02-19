@@ -14,8 +14,8 @@ export class EmailThroughputQueryService {
 
   /**
    * Query email throughput with automatic resolution based on time range
-   * <6h -> 5min, 6h-7d -> 1h, >7d -> daily
-   * Falls back to raw email_events if aggregate is empty (data too recent)
+   * <=12h -> 5min, 12h-7d -> 1h, >7d -> daily
+   * Falls back to finer aggregates if coarser one is empty
    */
   async getThroughput(params: {
     from: Date;
@@ -27,7 +27,8 @@ export class EmailThroughputQueryService {
     const rangeHours = (params.to.getTime() - params.from.getTime()) / (1000 * 60 * 60);
 
     let result;
-    if (rangeHours < 6) {
+    if (rangeHours <= 12) {
+      // <=12h: use 5m aggregate for near-realtime data (1h aggregate lags by up to 1 hour)
       result = await this.queryAggregate5m(fromIso, toIso, params.groupBy);
     } else if (rangeHours <= 168) {
       result = await this.queryAggregate1h(fromIso, toIso, params.groupBy);
