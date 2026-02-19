@@ -70,22 +70,33 @@ echo "Role:       $NODE_ROLE"
 echo "Server:     $MONITOR_URL"
 echo ""
 
+TOTAL_STEPS=5
+
+# --- Detect ZoneMTA ---
+HAS_ZONEMTA=false
+if [ -d "/opt/zone-mta" ] && systemctl is-active --quiet zone-mta 2>/dev/null; then
+  HAS_ZONEMTA=true
+  TOTAL_STEPS=6
+  echo "Detected:   ZoneMTA (plugin will be installed)"
+  echo ""
+fi
+
 # --- Step 1: Install Node.js 20 if not present ---
 if ! command -v node &>/dev/null || [[ $(node -v | cut -d'.' -f1 | tr -d 'v') -lt 20 ]]; then
-  echo "[1/5] Installing Node.js 20..."
+  echo "[1/$TOTAL_STEPS] Installing Node.js 20..."
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
   apt-get install -y -qq nodejs
 else
-  echo "[1/5] Node.js $(node -v) already installed"
+  echo "[1/$TOTAL_STEPS] Node.js $(node -v) already installed"
 fi
 
 # --- Step 2: Create agent directory ---
-echo "[2/5] Setting up agent directory..."
+echo "[2/$TOTAL_STEPS] Setting up agent directory..."
 mkdir -p "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
 # --- Step 3: Create package.json and install ---
-echo "[3/5] Installing agent package..."
+echo "[3/$TOTAL_STEPS] Installing agent package..."
 cat > package.json << 'PKGJSON'
 {
   "name": "tinomail-agent",
@@ -106,7 +117,7 @@ PKGJSON
 npm install --quiet 2>&1 | tail -3
 
 # --- Step 4: Download agent source from GitHub ---
-echo "[4/5] Downloading agent source..."
+echo "[4/$TOTAL_STEPS] Downloading agent source..."
 mkdir -p src/collectors src/transport
 
 # Download each file from the repo
@@ -122,7 +133,7 @@ for FILE in system-metrics-collector.ts process-health-collector.ts mongodb-metr
   curl -sL "$REPO_RAW/collectors/$FILE" -o "src/collectors/$FILE" 2>/dev/null || true
 done
 
-for FILE in http-metrics-transport.ts offline-metrics-buffer.ts; do
+for FILE in http-metrics-transport.ts offline-metrics-buffer.ts event-http-transport.ts; do
   curl -sL "$REPO_RAW/transport/$FILE" -o "src/transport/$FILE"
 done
 
@@ -254,7 +265,7 @@ cat > tsconfig.json << 'TSCONFIG'
 TSCONFIG
 
 # --- Step 5: Create .env and systemd service ---
-echo "[5/5] Configuring service..."
+echo "[5/$TOTAL_STEPS] Configuring service..."
 
 cat > .env << ENVFILE
 AGENT_SERVER_URL=$MONITOR_URL
@@ -306,17 +317,63 @@ systemctl daemon-reload
 systemctl enable tinomail-agent
 systemctl start tinomail-agent
 
+# --- Step 6 (ZoneMTA only): Install ZoneMTA monitor plugin ---
+if [ "$HAS_ZONEMTA" = true ]; then
+  echo "[6/$TOTAL_STEPS] Installing ZoneMTA monitor plugin..."
+
+  PLUGIN_DIR="/opt/zone-mta/plugins/tino-zonemta-delivery-tracker"
+  PLUGIN_CONFIG="/etc/zone-mta/plugins/tino-zonemta-delivery-tracker.toml"
+  PLUGIN_RAW="https://raw.githubusercontent.com/tinovn/tinomail-monitor/main/packages/agent/plugins/tino-zonemta-delivery-tracker/index.js"
+
+  mkdir -p "$PLUGIN_DIR"
+  curl -sL "$PLUGIN_RAW" -o "$PLUGIN_DIR/index.js"
+
+  # Create plugin config (only if not already present)
+  if [ ! -f "$PLUGIN_CONFIG" ]; then
+    cat > "$PLUGIN_CONFIG" << PLUGINCFG
+["tino-zonemta-delivery-tracker"]
+enabled = "sender"
+serverUrl = "$MONITOR_URL"
+apiKey = "$API_KEY"
+nodeId = "$NODE_ID"
+PLUGINCFG
+  else
+    echo "  Plugin config already exists, skipping config creation"
+  fi
+
+  echo "  Plugin installed: $PLUGIN_DIR/index.js"
+  echo "  Config created:   $PLUGIN_CONFIG"
+  echo "  Restarting ZoneMTA..."
+  systemctl restart zone-mta
+
+  sleep 2
+  if systemctl is-active --quiet zone-mta; then
+    echo "  ZoneMTA restarted successfully"
+  else
+    echo "  WARNING: ZoneMTA failed to restart! Check: journalctl -u zone-mta -n 20"
+    echo "  Rolling back plugin..."
+    rm -f "$PLUGIN_CONFIG"
+    systemctl restart zone-mta
+  fi
+fi
+
 sleep 3
 if systemctl is-active --quiet tinomail-agent; then
   echo ""
   echo "=== Agent installed and running! ==="
   echo "Node:   $NODE_ID ($NODE_ROLE)"
   echo "Server: $MONITOR_URL"
+  if [ "$HAS_ZONEMTA" = true ]; then
+    echo "Plugin: ZoneMTA monitor plugin installed"
+  fi
   echo ""
   echo "Commands:"
   echo "  systemctl status tinomail-agent    # Check status"
   echo "  journalctl -fu tinomail-agent      # View logs"
   echo "  systemctl restart tinomail-agent   # Restart"
+  if [ "$HAS_ZONEMTA" = true ]; then
+    echo "  journalctl -u zone-mta | grep Monitor  # Plugin logs"
+  fi
   echo ""
 else
   echo ""

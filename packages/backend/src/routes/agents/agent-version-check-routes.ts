@@ -25,14 +25,24 @@ const AGENT_SOURCE_FILES = [
   "transport/offline-metrics-buffer.ts",
 ];
 
+/** ZoneMTA plugin files (relative to packages/agent/plugins/) */
+const ZONEMTA_PLUGIN_FILES = [
+  "tino-zonemta-delivery-tracker/index.js",
+];
+
 const GITHUB_RAW_BASE =
   "https://raw.githubusercontent.com/tinovn/tinomail-monitor/main/packages/agent/src";
+
+const GITHUB_PLUGIN_RAW_BASE =
+  "https://raw.githubusercontent.com/tinovn/tinomail-monitor/main/packages/agent/plugins";
 
 interface LatestVersionResponse {
   version: string;
   files: string[];
   githubRawBase: string;
   updateRequested: boolean;
+  pluginFiles?: string[];
+  pluginGithubRawBase?: string;
 }
 
 const nodeIdQuerySchema = z.object({
@@ -60,15 +70,24 @@ export default async function agentVersionCheckRoutes(app: FastifyInstance) {
         // Fallback to hardcoded version
       }
 
-      // Check if admin requested update for this node
+      // Fetch node info (update flag + role/services for plugin detection)
       let updateRequested = false;
+      let hasZonemta = false;
       try {
         const [node] = await app.db
-          .select({ updateRequested: nodes.updateRequested })
+          .select({
+            updateRequested: nodes.updateRequested,
+            role: nodes.role,
+            metadata: nodes.metadata,
+          })
           .from(nodes)
           .where(eq(nodes.id, nodeId))
           .limit(1);
-        updateRequested = node?.updateRequested ?? false;
+        if (node) {
+          updateRequested = node.updateRequested ?? false;
+          const services = (node.metadata as { detectedServices?: string[] })?.detectedServices || [];
+          hasZonemta = node.role === "zonemta" || services.includes("zonemta");
+        }
       } catch {
         // Ignore DB errors
       }
@@ -78,6 +97,10 @@ export default async function agentVersionCheckRoutes(app: FastifyInstance) {
         files: AGENT_SOURCE_FILES,
         githubRawBase: GITHUB_RAW_BASE,
         updateRequested,
+        ...(hasZonemta && {
+          pluginFiles: ZONEMTA_PLUGIN_FILES,
+          pluginGithubRawBase: GITHUB_PLUGIN_RAW_BASE,
+        }),
       };
 
       const response: ApiResponse<LatestVersionResponse> = {
