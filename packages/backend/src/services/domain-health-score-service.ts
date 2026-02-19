@@ -63,7 +63,7 @@ export class DomainHealthScoreService {
   }
 
   /**
-   * Get all domains with health scores
+   * Get all domains with health scores (single aggregated query instead of N+1)
    */
   async getDomainsWithHealthScores(): Promise<DomainWithHealthScore[]> {
     // Check cache first
@@ -76,43 +76,18 @@ export class DomainHealthScoreService {
     // Get all domains
     const domains = await this.app.db.select().from(sendingDomains);
 
-    // Get metrics for last 24h for each domain
+    if (domains.length === 0) {
+      await this.app.redis.setex(cacheKey, 300, "[]");
+      return [];
+    }
+
+    // Single aggregated query for all domains' 24h metrics
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    const domainsWithScores = await Promise.all(
-      domains.map(async (domain) => {
-        const metrics = await this.getDomainMetrics(domain.domain, yesterday, now);
-        const healthScore = this.calculateHealthScore(metrics);
-        const deliveredPercent = metrics.totalSent > 0 ? (metrics.delivered / metrics.totalSent) * 100 : 0;
-        const bouncePercent = metrics.totalSent > 0 ? (metrics.bounced / metrics.totalSent) * 100 : 0;
-
-        return {
-          ...domain,
-          healthScore,
-          sent24h: metrics.totalSent,
-          deliveredPercent,
-          bouncePercent,
-        } as DomainWithHealthScore;
-      })
-    );
-
-    // Cache for 5 minutes
-    await this.app.redis.setex(cacheKey, 300, JSON.stringify(domainsWithScores));
-
-    return domainsWithScores;
-  }
-
-  /**
-   * Get domain metrics from email_stats_daily
-   */
-  private async getDomainMetrics(
-    domain: string,
-    from: Date,
-    to: Date
-  ): Promise<DomainHealthMetrics> {
-    const [row] = await this.app.sql`
+    const metricsRows = await this.app.sql`
       SELECT
+        from_domain,
         COUNT(*) FILTER (WHERE event_type = 'accepted' OR event_type = 'delivered') as delivered,
         COUNT(*) FILTER (WHERE event_type = 'bounced') as bounced,
         COUNT(*) FILTER (WHERE event_type = 'bounced' AND bounce_type = 'hard') as hard_bounced,
@@ -122,22 +97,50 @@ export class DomainHealthScoreService {
         SUM(CASE WHEN dmarc_result = 'pass' THEN 1 ELSE 0 END) as dmarc_pass,
         AVG(delivery_time_ms) as avg_delivery_ms
       FROM email_events
-      WHERE from_domain = ${domain}
-        AND time >= ${from.toISOString()}::timestamptz
-        AND time < ${to.toISOString()}::timestamptz
+      WHERE from_domain IS NOT NULL
+        AND time >= ${yesterday.toISOString()}::timestamptz
+        AND time < ${now.toISOString()}::timestamptz
+      GROUP BY from_domain
     `;
 
-    return {
-      domain,
-      totalSent: parseInt(row.total_sent || "0", 10),
-      delivered: parseInt(row.delivered || "0", 10),
-      bounced: parseInt(row.bounced || "0", 10),
-      hardBounced: parseInt(row.hard_bounced || "0", 10),
-      dkimPass: parseInt(row.dkim_pass || "0", 10),
-      spfPass: parseInt(row.spf_pass || "0", 10),
-      dmarcPass: parseInt(row.dmarc_pass || "0", 10),
-      avgDeliveryMs: parseFloat(row.avg_delivery_ms || "0"),
-    };
+    // Build a lookup map: from_domain -> metrics
+    const metricsMap = new Map<string, DomainHealthMetrics>();
+    for (const row of metricsRows) {
+      metricsMap.set(String(row.from_domain), {
+        domain: String(row.from_domain),
+        totalSent: parseInt(row.total_sent || "0", 10),
+        delivered: parseInt(row.delivered || "0", 10),
+        bounced: parseInt(row.bounced || "0", 10),
+        hardBounced: parseInt(row.hard_bounced || "0", 10),
+        dkimPass: parseInt(row.dkim_pass || "0", 10),
+        spfPass: parseInt(row.spf_pass || "0", 10),
+        dmarcPass: parseInt(row.dmarc_pass || "0", 10),
+        avgDeliveryMs: parseFloat(row.avg_delivery_ms || "0"),
+      });
+    }
+
+    const domainsWithScores = domains.map((domain) => {
+      const metrics = metricsMap.get(domain.domain) || {
+        domain: domain.domain, totalSent: 0, delivered: 0, bounced: 0,
+        hardBounced: 0, dkimPass: 0, spfPass: 0, dmarcPass: 0, avgDeliveryMs: 0,
+      };
+      const healthScore = this.calculateHealthScore(metrics);
+      const deliveredPercent = metrics.totalSent > 0 ? (metrics.delivered / metrics.totalSent) * 100 : 0;
+      const bouncePercent = metrics.totalSent > 0 ? (metrics.bounced / metrics.totalSent) * 100 : 0;
+
+      return {
+        ...domain,
+        healthScore,
+        sent24h: metrics.totalSent,
+        deliveredPercent,
+        bouncePercent,
+      } as DomainWithHealthScore;
+    });
+
+    // Cache for 5 minutes
+    await this.app.redis.setex(cacheKey, 300, JSON.stringify(domainsWithScores));
+
+    return domainsWithScores;
   }
 
   /**
