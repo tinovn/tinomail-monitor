@@ -24,6 +24,19 @@ export default async function eventIngestionRoutes(app: FastifyInstance) {
       const validated = emailEventIngestSchema.parse(request.body);
       const events = Array.isArray(validated) ? validated : [validated];
 
+      // Auto-extract fromDomain/fromUser from fromAddress if not provided
+      for (const event of events) {
+        if (event.fromAddress && event.fromAddress.includes("@")) {
+          const [user, domain] = event.fromAddress.split("@");
+          if (!event.fromDomain) event.fromDomain = domain;
+          if (!event.fromUser) event.fromUser = user;
+        }
+        // Also extract toDomain from toAddress if not provided
+        if (event.toAddress && event.toAddress.includes("@") && !event.toDomain) {
+          event.toDomain = event.toAddress.split("@")[1];
+        }
+      }
+
       // Enqueue all events to BullMQ with priority based on event type
       const jobs = events.map((event) => {
         const priority = getPriority(event.eventType);
