@@ -19,18 +19,33 @@ interface DomainWithHealthScore extends SendingDomain {
   bouncePercent: number;
 }
 
+interface Pagination {
+  page: number;
+  limit: number;
+  total: number;
+  pages: number;
+}
+
 const columnHelper = createColumnHelper<DomainWithHealthScore>();
 
 interface DomainHealthScoreTableProps {
   domains: DomainWithHealthScore[];
   sorting: SortingState;
   onSortingChange: (updater: SortingState | ((old: SortingState) => SortingState)) => void;
+  search: string;
+  onSearchChange: (value: string) => void;
+  pagination?: Pagination;
+  onPageChange: (page: number) => void;
 }
 
 export function DomainHealthScoreTable({
   domains,
   sorting,
   onSortingChange,
+  search,
+  onSearchChange,
+  pagination,
+  onPageChange,
 }: DomainHealthScoreTableProps) {
   const navigate = useNavigate();
 
@@ -144,43 +159,130 @@ export function DomainHealthScoreTable({
     onSortingChange,
     getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
+    manualSorting: true,
   });
 
   return (
-    <div className="rounded-md border border-border bg-surface">
-      <table className="w-full table-dense">
-        <thead>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <tr key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <th
-                  key={header.id}
-                  className="text-left text-sm font-semibold text-foreground"
+    <div className="space-y-3">
+      {/* Search */}
+      <div className="flex items-center gap-3">
+        <input
+          type="text"
+          placeholder="Search domains..."
+          value={search}
+          onChange={(e) => onSearchChange(e.target.value)}
+          className="w-64 rounded-md border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+        />
+        {pagination && (
+          <span className="text-xs text-muted-foreground">
+            {pagination.total} domain{pagination.total !== 1 ? "s" : ""}
+          </span>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="rounded-md border border-border bg-surface">
+        <table className="w-full table-dense">
+          <thead>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <tr key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <th
+                    key={header.id}
+                    className={cn(
+                      "text-left text-sm font-semibold text-foreground",
+                      header.column.getCanSort() && "cursor-pointer select-none hover:text-primary",
+                    )}
+                    onClick={header.column.getToggleSortingHandler()}
+                  >
+                    <div className="flex items-center gap-1">
+                      {flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.column.getIsSorted() === "asc" && <span className="text-xs">▲</span>}
+                      {header.column.getIsSorted() === "desc" && <span className="text-xs">▼</span>}
+                    </div>
+                  </th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody>
+            {table.getRowModel().rows.map((row) => (
+              <tr
+                key={row.id}
+                onClick={() =>
+                  navigate({ to: "/domains/$domain", params: { domain: row.original.domain } })
+                }
+                className="cursor-pointer transition-colors hover:bg-surface/80"
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <td key={cell.id}>
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination */}
+      {pagination && pagination.pages > 1 && (
+        <div className="flex items-center justify-between rounded-md border border-border bg-surface px-4 py-2">
+          <button
+            onClick={() => onPageChange(pagination.page - 1)}
+            disabled={pagination.page <= 1}
+            className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface/80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center gap-1">
+            {generatePageNumbers(pagination.page, pagination.pages).map((p, i) =>
+              p === "..." ? (
+                <span key={`ellipsis-${i}`} className="px-2 text-sm text-muted-foreground">...</span>
+              ) : (
+                <button
+                  key={p}
+                  onClick={() => onPageChange(p as number)}
+                  className={cn(
+                    "min-w-8 rounded-md px-2 py-1.5 text-sm",
+                    p === pagination.page
+                      ? "bg-primary text-primary-foreground font-medium"
+                      : "hover:bg-surface/80 text-muted-foreground",
+                  )}
                 >
-                  {flexRender(header.column.columnDef.header, header.getContext())}
-                </th>
-              ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody>
-          {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              onClick={() =>
-                navigate({ to: "/domains/$domain", params: { domain: row.original.domain } })
-              }
-              className="cursor-pointer transition-colors hover:bg-surface/80"
-            >
-              {row.getVisibleCells().map((cell) => (
-                <td key={cell.id}>
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  {p}
+                </button>
+              ),
+            )}
+          </div>
+
+          <button
+            onClick={() => onPageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.pages}
+            className="rounded-md border border-border bg-surface px-3 py-1.5 text-sm hover:bg-surface/80 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
+}
+
+/** Generate page numbers with ellipsis for large page counts */
+function generatePageNumbers(current: number, total: number): (number | "...")[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+
+  const pages: (number | "...")[] = [1];
+  if (current > 3) pages.push("...");
+
+  const start = Math.max(2, current - 1);
+  const end = Math.min(total - 1, current + 1);
+  for (let i = start; i <= end; i++) pages.push(i);
+
+  if (current < total - 2) pages.push("...");
+  pages.push(total);
+
+  return pages;
 }

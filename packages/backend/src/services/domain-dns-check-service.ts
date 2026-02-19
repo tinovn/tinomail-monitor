@@ -1,5 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { resolveTxt } from "dns/promises";
+import { eq } from "drizzle-orm";
+import { sendingDomains } from "../db/schema/sending-domains-table.js";
 
 interface DnsRecord {
   found: boolean;
@@ -144,5 +146,52 @@ export class DomainDnsCheckService {
         error: error.code || error.message,
       };
     }
+  }
+
+  /**
+   * Check DNS and update sending_domains table with results.
+   * Used by auto-sync and periodic DNS re-check workers.
+   */
+  async checkAndUpdateDomain(domain: string): Promise<DnsCheckResult> {
+    const result = await this.checkDomain(domain);
+
+    await this.app.db
+      .update(sendingDomains)
+      .set({
+        dkimConfigured: result.dkim.found,
+        spfConfigured: result.spf.found,
+        dmarcConfigured: result.dmarc.found,
+        dmarcPolicy: result.dmarc.policy,
+      })
+      .where(eq(sendingDomains.domain, domain));
+
+    return result;
+  }
+
+  /**
+   * Check DNS for all active domains and update the table.
+   * Processes sequentially with small delay to avoid DNS rate limiting.
+   */
+  async checkAndUpdateAllDomains(): Promise<{ checked: number; updated: number }> {
+    const domains = await this.app.db.select().from(sendingDomains);
+    let updated = 0;
+
+    for (const d of domains) {
+      try {
+        await this.checkAndUpdateDomain(d.domain);
+        updated++;
+      } catch (error) {
+        this.app.log.warn({ domain: d.domain, error }, "DNS check failed for domain");
+      }
+      // Small delay between checks to avoid DNS rate limiting
+      if (domains.length > 10) {
+        await new Promise((r) => setTimeout(r, 200));
+      }
+    }
+
+    // Invalidate health scores cache since auth flags changed
+    await this.app.redis.del("domains:health:all");
+
+    return { checked: domains.length, updated };
   }
 }

@@ -1,13 +1,17 @@
 import { Worker, Queue } from "bullmq";
 import type { FastifyInstance } from "fastify";
 import { sendingDomains } from "../db/schema/sending-domains-table.js";
+import { DomainDnsCheckService } from "../services/domain-dns-check-service.js";
 
 /**
- * Auto-sync worker: discovers new sending domains from email_events
- * and registers them in the sending_domains table.
+ * Auto-sync worker: discovers new sending domains from email_events,
+ * registers them in the sending_domains table, and runs DNS checks
+ * for DKIM/SPF/DMARC on newly discovered domains.
  * Runs every 5 minutes.
  */
 export function createSendingDomainAutoSyncWorker(app: FastifyInstance) {
+  const dnsCheckService = new DomainDnsCheckService(app);
+
   const worker = new Worker(
     "sending-domain-auto-sync",
     async () => {
@@ -43,6 +47,18 @@ export function createSendingDomainAutoSyncWorker(app: FastifyInstance) {
           { count: newDomains.length, domains: newDomains.map((d) => d.domain) },
           "Auto-synced new sending domains from email_events",
         );
+
+        // Run DNS checks on newly discovered domains
+        for (const d of newDomains) {
+          try {
+            await dnsCheckService.checkAndUpdateDomain(d.domain);
+          } catch (error) {
+            app.log.warn({ domain: d.domain, error }, "DNS check failed for new domain");
+          }
+        }
+
+        // Invalidate health scores cache since new domains added
+        await app.redis.del("domains:health:all");
 
         return { synced: newDomains.length };
       } catch (error) {

@@ -2,19 +2,55 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import type { ApiResponse } from "@tinomail/shared";
 import { DomainHealthScoreService } from "../../services/domain-health-score-service.js";
 import { DomainDnsCheckService } from "../../services/domain-dns-check-service.js";
-import { domainStatsQuerySchema, domainParamsSchema } from "../../schemas/domain-validation-schemas.js";
+import { domainStatsQuerySchema, domainParamsSchema, domainListQuerySchema } from "../../schemas/domain-validation-schemas.js";
 import { authHook } from "../../hooks/auth-hook.js";
 
 export default async function domainQualityRoutes(app: FastifyInstance) {
   const domainHealthService = new DomainHealthScoreService(app);
   const domainDnsCheckService = new DomainDnsCheckService(app);
 
-  // GET /api/v1/domains - List all sending domains with health scores
-  app.get("/", { onRequest: [authHook] }, async (_request: FastifyRequest, reply: FastifyReply) => {
-    const domains = await domainHealthService.getDomainsWithHealthScores();
-    const response: ApiResponse<typeof domains> = {
+  // GET /api/v1/domains - List sending domains with health scores (paginated)
+  app.get("/", { onRequest: [authHook] }, async (request: FastifyRequest, reply: FastifyReply) => {
+    const query = domainListQuerySchema.parse(request.query);
+    const allDomains = await domainHealthService.getDomainsWithHealthScores();
+
+    // Filter by search term
+    let filtered = allDomains;
+    if (query.search) {
+      const term = query.search.toLowerCase();
+      filtered = allDomains.filter((d) => d.domain.toLowerCase().includes(term));
+    }
+
+    // Sort
+    if (query.sortBy) {
+      const dir = query.sortOrder === "desc" ? -1 : 1;
+      filtered.sort((a, b) => {
+        const aVal = a[query.sortBy!];
+        const bVal = b[query.sortBy!];
+        if (typeof aVal === "string") return dir * aVal.localeCompare(bVal as string);
+        return dir * ((aVal as number) - (bVal as number));
+      });
+    }
+
+    // Paginate
+    const total = filtered.length;
+    const offset = (query.page - 1) * query.limit;
+    const paginated = filtered.slice(offset, offset + query.limit);
+
+    const response: ApiResponse<{
+      domains: typeof paginated;
+      pagination: { page: number; limit: number; total: number; pages: number };
+    }> = {
       success: true,
-      data: domains,
+      data: {
+        domains: paginated,
+        pagination: {
+          page: query.page,
+          limit: query.limit,
+          total,
+          pages: Math.ceil(total / query.limit),
+        },
+      },
     };
     reply.send(response);
   });

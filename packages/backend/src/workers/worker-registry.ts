@@ -10,6 +10,7 @@ import { createAlertEscalationScheduledWorker, scheduleAlertEscalationChecks } f
 import { createReportGenerationScheduledWorker, scheduleReportGeneration } from "./report-generation-scheduled-worker.js";
 import { createSendingIpAutoSyncWorker, scheduleSendingIpAutoSync } from "./sending-ip-auto-sync-scheduled-worker.js";
 import { createSendingDomainAutoSyncWorker, scheduleSendingDomainAutoSync } from "./sending-domain-auto-sync-scheduled-worker.js";
+import { createDomainDnsRecheckWorker, scheduleDomainDnsRecheck } from "./domain-dns-recheck-scheduled-worker.js";
 
 /**
  * Initialize all BullMQ workers
@@ -59,6 +60,10 @@ export async function initializeWorkers(app: FastifyInstance): Promise<Worker[]>
     const sendingDomainSyncWorker = createSendingDomainAutoSyncWorker(app);
     workers.push(sendingDomainSyncWorker);
 
+    // Domain DNS re-check worker (DKIM/SPF/DMARC)
+    const domainDnsRecheckWorker = createDomainDnsRecheckWorker(app);
+    workers.push(domainDnsRecheckWorker);
+
     // Schedule DNSBL checks
     await scheduleDnsblChecks(app);
 
@@ -82,6 +87,9 @@ export async function initializeWorkers(app: FastifyInstance): Promise<Worker[]>
 
     // Schedule sending domain auto-sync
     await scheduleSendingDomainAutoSync(app);
+
+    // Schedule domain DNS re-check (DKIM/SPF/DMARC every 6h)
+    await scheduleDomainDnsRecheck(app);
 
     app.log.info({ workerCount: workers.length }, "BullMQ workers initialized");
 
