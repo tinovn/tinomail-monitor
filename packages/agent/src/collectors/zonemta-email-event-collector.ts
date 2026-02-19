@@ -88,11 +88,13 @@ export class ZonemtaEmailEventCollector {
 
     const collection = this.client.db("zone-mta").collection("zone-queue");
 
+    // Watch for any mutation — filter status in handleChange() instead of pipeline.
+    // ZoneMTA uses update/replace/delete patterns depending on version and delivery outcome.
+    // Using a broad pipeline avoids missing events due to operation type mismatches.
     const pipeline = [
       {
         $match: {
-          operationType: { $in: ["update", "replace"] },
-          "updateDescription.updatedFields.status": { $exists: true },
+          operationType: { $in: ["update", "replace", "insert"] },
         },
       },
     ];
