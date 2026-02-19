@@ -5,11 +5,13 @@ import { ProcessHealthCollector } from "./collectors/process-health-collector.js
 import { MongodbMetricsCollector } from "./collectors/mongodb-metrics-collector.js";
 import { ServiceAutoDiscoveryCollector } from "./collectors/service-auto-discovery-collector.js";
 import { ZonemtaMetricsCollector } from "./collectors/zonemta-metrics-collector.js";
+import { ZonemtaEmailEventCollector } from "./collectors/zonemta-email-event-collector.js";
 import { RedisMetricsCollector } from "./collectors/redis-metrics-collector.js";
 import {
   HttpMetricsTransport,
   type TransportConfig,
 } from "./transport/http-metrics-transport.js";
+import { EventHttpTransport } from "./transport/event-http-transport.js";
 import { OfflineMetricsBuffer } from "./transport/offline-metrics-buffer.js";
 import { SelfUpdater } from "./self-updater.js";
 import * as si from "systeminformation";
@@ -20,6 +22,7 @@ export class MonitoringAgent {
   private discoveryCollector: ServiceAutoDiscoveryCollector;
   private mongodbCollector: MongodbMetricsCollector | null = null;
   private zonemtaCollector: ZonemtaMetricsCollector | null = null;
+  private emailEventCollector: ZonemtaEmailEventCollector | null = null;
   private redisCollector: RedisMetricsCollector | null = null;
   private transport: HttpMetricsTransport;
   private buffer: OfflineMetricsBuffer;
@@ -77,6 +80,17 @@ export class MonitoringAgent {
 
     // Initialize dynamic collectors based on discovered services
     this.initDynamicCollectors();
+
+    // Connect email event collector (ZoneMTA change stream)
+    if (this.emailEventCollector) {
+      try {
+        await this.emailEventCollector.connect();
+        console.info("[Agent] ZoneMTA email event collector connected");
+      } catch (error) {
+        console.error("[Agent] ZoneMTA email event collector connection failed:", error);
+        this.emailEventCollector = null;
+      }
+    }
 
     // Connect MongoDB collector if configured
     if (this.mongodbCollector) {
@@ -182,6 +196,10 @@ export class MonitoringAgent {
     this.discoveryIntervalId = null;
     this.updateCheckIntervalId = null;
 
+    if (this.emailEventCollector) {
+      await this.emailEventCollector.disconnect();
+    }
+
     if (this.mongodbCollector) {
       await this.mongodbCollector.disconnect();
     }
@@ -214,6 +232,22 @@ export class MonitoringAgent {
         this.config.AGENT_ZONEMTA_API_URL
       );
       console.info("[Agent] ZoneMTA collector enabled");
+
+      // Enable email event collector if ZoneMTA MongoDB URI is configured
+      if (this.config.AGENT_ZONEMTA_MONGODB_URI && !this.emailEventCollector) {
+        const eventTransport = new EventHttpTransport({
+          serverUrl: this.config.AGENT_SERVER_URL,
+          apiKey: this.config.AGENT_API_KEY,
+          timeoutMs: 10000,
+          maxRetries: 3,
+        });
+        this.emailEventCollector = new ZonemtaEmailEventCollector(
+          this.config.AGENT_ZONEMTA_MONGODB_URI,
+          this.config.AGENT_NODE_ID,
+          eventTransport,
+        );
+        console.info("[Agent] ZoneMTA email event collector enabled");
+      }
     }
 
     if (services.includes("redis") && !this.redisCollector) {

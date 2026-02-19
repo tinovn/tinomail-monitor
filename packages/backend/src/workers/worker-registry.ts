@@ -8,6 +8,7 @@ import { createBruteForceDetectionScheduledWorker, scheduleBruteForceDetectionCh
 import { createAlertEvaluationScheduledWorker, scheduleAlertEvaluationChecks } from "./alert-evaluation-scheduled-worker.js";
 import { createAlertEscalationScheduledWorker, scheduleAlertEscalationChecks } from "./alert-escalation-scheduled-worker.js";
 import { createReportGenerationScheduledWorker, scheduleReportGeneration } from "./report-generation-scheduled-worker.js";
+import { createSendingIpAutoSyncWorker, scheduleSendingIpAutoSync } from "./sending-ip-auto-sync-scheduled-worker.js";
 
 /**
  * Initialize all BullMQ workers
@@ -49,6 +50,10 @@ export async function initializeWorkers(app: FastifyInstance): Promise<Worker[]>
     const reportGenerationWorker = createReportGenerationScheduledWorker(app);
     workers.push(reportGenerationWorker);
 
+    // Sending IP auto-sync worker
+    const sendingIpSyncWorker = createSendingIpAutoSyncWorker(app);
+    workers.push(sendingIpSyncWorker);
+
     // Schedule DNSBL checks
     await scheduleDnsblChecks(app);
 
@@ -66,6 +71,9 @@ export async function initializeWorkers(app: FastifyInstance): Promise<Worker[]>
 
     // Schedule report generation
     await scheduleReportGeneration(app);
+
+    // Schedule sending IP auto-sync
+    await scheduleSendingIpAutoSync(app);
 
     app.log.info({ workerCount: workers.length }, "BullMQ workers initialized");
 

@@ -15,6 +15,7 @@ interface EmailEventPayload {
   toAddress?: string;
   toDomain?: string;
   mtaNode?: string;
+  sendingIp?: string;
   mxHost?: string;
   statusCode?: number;
   statusMessage?: string;
@@ -206,6 +207,12 @@ export class ZonemtaEmailEventCollector {
     const recipient = doc.recipient as string | undefined;
     const toAddress = recipient && recipient.includes("@") ? recipient : undefined;
 
+    // Extract sending IP from ZoneMTA's localAddress field (outbound interface IP)
+    const localAddress = doc.localAddress as string | undefined;
+    const sendingIp = localAddress && /^\d{1,3}(\.\d{1,3}){3}$/.test(localAddress)
+      ? localAddress
+      : undefined;
+
     const event: EmailEventPayload = {
       time: last ? last.toISOString() : new Date().toISOString(),
       eventType,
@@ -214,6 +221,7 @@ export class ZonemtaEmailEventCollector {
       toAddress,
       toDomain: doc.domain as string | undefined,
       mtaNode: this.nodeId,
+      sendingIp,
       mxHost: doc.mxHostname as string | undefined,
       statusCode,
       statusMessage: response?.substring(0, 500),
