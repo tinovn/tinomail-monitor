@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
 import { apiClient } from "@/lib/api-http-client";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
 
 interface ThroughputData {
   time: string;
@@ -18,16 +19,17 @@ interface ThroughputRow {
 }
 
 export function OutboundThroughputStackedChart() {
+  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
   const [data, setData] = useState<ThroughputData[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchThroughputData = useCallback(async () => {
     try {
-      const to = new Date();
-      const from = new Date(to.getTime() - 24 * 60 * 60 * 1000); // 24h ago
+      refreshRange();
+      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
 
       const result = await apiClient.get<ThroughputRow[]>(
-        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}`
+        `/email/throughput?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
       );
 
       setData(transformData(result));
@@ -36,15 +38,21 @@ export function OutboundThroughputStackedChart() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshRange]);
 
   useEffect(() => {
     fetchThroughputData();
-    const interval = setInterval(fetchThroughputData, 30000); // 30s refresh
-    return () => clearInterval(interval);
-  }, [fetchThroughputData]);
+    const interval = autoRefresh
+      ? setInterval(fetchThroughputData, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchThroughputData, autoRefresh]);
 
-  const transformData = (rawData: any[]): ThroughputData[] => {
+  useEffect(() => {
+    fetchThroughputData();
+  }, [from, to, fetchThroughputData]);
+
+  const transformData = (rawData: ThroughputRow[]): ThroughputData[] => {
     const grouped = new Map<string, ThroughputData>();
 
     for (const row of rawData) {
@@ -81,9 +89,7 @@ export function OutboundThroughputStackedChart() {
       textStyle: { color: "#dbdbe5" },
     },
     xAxis: {
-      type: "category",
-      boundaryGap: false,
-      data: data.map((d) => new Date(d.time).toLocaleTimeString()),
+      type: "time",
       axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
@@ -98,7 +104,7 @@ export function OutboundThroughputStackedChart() {
         areaStyle: { color: "rgba(34, 197, 94, 0.3)" },
         lineStyle: { color: "#22c55e" },
         itemStyle: { color: "#22c55e" },
-        data: data.map((d) => d.delivered),
+        data: data.map((d) => [d.time, d.delivered]),
         smooth: true,
       },
       {
@@ -108,7 +114,7 @@ export function OutboundThroughputStackedChart() {
         areaStyle: { color: "rgba(234, 179, 8, 0.3)" },
         lineStyle: { color: "#eab308" },
         itemStyle: { color: "#eab308" },
-        data: data.map((d) => d.deferred),
+        data: data.map((d) => [d.time, d.deferred]),
         smooth: true,
       },
       {
@@ -118,7 +124,7 @@ export function OutboundThroughputStackedChart() {
         areaStyle: { color: "rgba(239, 68, 68, 0.3)" },
         lineStyle: { color: "#ef4444" },
         itemStyle: { color: "#ef4444" },
-        data: data.map((d) => d.bounced),
+        data: data.map((d) => [d.time, d.bounced]),
         smooth: true,
       },
       {
@@ -128,7 +134,7 @@ export function OutboundThroughputStackedChart() {
         areaStyle: { color: "rgba(249, 115, 22, 0.3)" },
         lineStyle: { color: "#f97316" },
         itemStyle: { color: "#f97316" },
-        data: data.map((d) => d.rejected),
+        data: data.map((d) => [d.time, d.rejected]),
         smooth: true,
       },
     ],

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
 import { apiClient } from "@/lib/api-http-client";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
 
 interface NodeThroughput {
   time: string;
@@ -16,17 +17,18 @@ interface NodeThroughputRow {
 }
 
 export function OutboundByNodeMultiChart() {
+  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
   const [data, setData] = useState<NodeThroughput[]>([]);
   const [nodes, setNodes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchNodeThroughput = useCallback(async () => {
     try {
-      const to = new Date();
-      const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+      refreshRange();
+      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
 
       const result = await apiClient.get<NodeThroughputRow[]>(
-        `/email/throughput?from=${from.toISOString()}&to=${to.toISOString()}&by=node`
+        `/email/throughput?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}&by=node`
       );
 
       const { data: transformedData, nodes: nodeList } = transformNodeData(result);
@@ -37,16 +39,22 @@ export function OutboundByNodeMultiChart() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [refreshRange]);
 
   useEffect(() => {
     fetchNodeThroughput();
-    const interval = setInterval(fetchNodeThroughput, 30000);
-    return () => clearInterval(interval);
-  }, [fetchNodeThroughput]);
+    const interval = autoRefresh
+      ? setInterval(fetchNodeThroughput, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchNodeThroughput, autoRefresh]);
+
+  useEffect(() => {
+    fetchNodeThroughput();
+  }, [from, to, fetchNodeThroughput]);
 
   const transformNodeData = (
-    rawData: any[]
+    rawData: NodeThroughputRow[]
   ): { data: NodeThroughput[]; nodes: string[] } => {
     const grouped = new Map<string, NodeThroughput>();
     const nodeSet = new Set<string>();
@@ -73,16 +81,8 @@ export function OutboundByNodeMultiChart() {
   };
 
   const colors = [
-    "#3b82f6",
-    "#10b981",
-    "#f59e0b",
-    "#ef4444",
-    "#8b5cf6",
-    "#ec4899",
-    "#14b8a6",
-    "#f97316",
-    "#06b6d4",
-    "#84cc16",
+    "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+    "#ec4899", "#14b8a6", "#f97316", "#06b6d4", "#84cc16",
   ];
 
   const option: EChartsOption = {
@@ -96,9 +96,7 @@ export function OutboundByNodeMultiChart() {
       type: "scroll",
     },
     xAxis: {
-      type: "category",
-      boundaryGap: false,
-      data: data.map((d) => new Date(d.time).toLocaleTimeString()),
+      type: "time",
       axisLabel: { color: "#dbdbe5" },
     },
     yAxis: {
@@ -107,8 +105,8 @@ export function OutboundByNodeMultiChart() {
     },
     series: nodes.map((node, idx) => ({
       name: node,
-      type: "line",
-      data: data.map((d) => d[node] || 0),
+      type: "line" as const,
+      data: data.map((d) => [d.time, d[node] || 0]),
       smooth: true,
       lineStyle: { color: colors[idx % colors.length] },
       itemStyle: { color: colors[idx % colors.length] },

@@ -1,43 +1,62 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
 
 interface TimeBucket {
   label: string;
   count: number;
 }
 
+const EMPTY_BUCKETS: TimeBucket[] = [
+  { label: "<1s", count: 0 },
+  { label: "1-3s", count: 0 },
+  { label: "3-10s", count: 0 },
+  { label: "10-30s", count: 0 },
+  { label: "30s-1m", count: 0 },
+  { label: "1-5m", count: 0 },
+  { label: ">5m", count: 0 },
+];
+
 export function DeliveryTimeHistogramChart() {
-  const [data, setData] = useState<TimeBucket[]>([]);
+  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
+  const [data, setData] = useState<TimeBucket[]>(EMPTY_BUCKETS);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchHistogramData();
-    const interval = setInterval(fetchHistogramData, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchHistogramData = async () => {
+  const fetchHistogramData = useCallback(async () => {
     try {
-      // Mock data for now - replace with actual API call
-      // In production, this would query email_events and bucket by delivery_time_ms
-      const mockData = [
-        { label: "<1s", count: 15420 },
-        { label: "1-3s", count: 8250 },
-        { label: "3-10s", count: 3120 },
-        { label: "10-30s", count: 1850 },
-        { label: "30s-1m", count: 920 },
-        { label: "1-5m", count: 380 },
-        { label: ">5m", count: 160 },
-      ];
+      refreshRange();
+      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
 
-      setData(mockData);
-    } catch (error) {
-      console.error("Failed to fetch histogram data:", error);
+      const response = await fetch(
+        `/api/v1/email/delivery-histogram?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
+      );
+      const result = await response.json();
+
+      if (result.success && result.data?.length > 0) {
+        setData(result.data.map((r: any) => ({ label: r.bucket, count: r.count })));
+      } else {
+        setData(EMPTY_BUCKETS);
+      }
+    } catch {
+      // API may not exist yet — show empty buckets
+      setData(EMPTY_BUCKETS);
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshRange]);
+
+  useEffect(() => {
+    fetchHistogramData();
+    const interval = autoRefresh
+      ? setInterval(fetchHistogramData, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchHistogramData, autoRefresh]);
+
+  useEffect(() => {
+    fetchHistogramData();
+  }, [from, to, fetchHistogramData]);
 
   const option: EChartsOption = {
     tooltip: {

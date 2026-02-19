@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
 
 interface DeliveryMetrics {
   avg: number;
@@ -9,25 +10,20 @@ interface DeliveryMetrics {
 }
 
 export function DeliveryTimeGaugeSet() {
+  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
   const [metrics, setMetrics] = useState<DeliveryMetrics>({
     avg: 0,
     p95: 0,
     p99: 0,
   });
 
-  useEffect(() => {
-    fetchDeliveryMetrics();
-    const interval = setInterval(fetchDeliveryMetrics, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchDeliveryMetrics = async () => {
+  const fetchDeliveryMetrics = useCallback(async () => {
     try {
-      const to = new Date();
-      const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+      refreshRange();
+      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
 
       const response = await fetch(
-        `/api/v1/email/stats?from=${from.toISOString()}&to=${to.toISOString()}&groupBy=event_type`
+        `/api/v1/email/stats?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}&groupBy=event_type`
       );
       const result = await response.json();
 
@@ -47,7 +43,19 @@ export function DeliveryTimeGaugeSet() {
     } catch (error) {
       console.error("Failed to fetch delivery metrics:", error);
     }
-  };
+  }, [refreshRange]);
+
+  useEffect(() => {
+    fetchDeliveryMetrics();
+    const interval = autoRefresh
+      ? setInterval(fetchDeliveryMetrics, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchDeliveryMetrics, autoRefresh]);
+
+  useEffect(() => {
+    fetchDeliveryMetrics();
+  }, [from, to, fetchDeliveryMetrics]);
 
   return (
     <div className="grid grid-cols-1 gap-6 md:grid-cols-3">

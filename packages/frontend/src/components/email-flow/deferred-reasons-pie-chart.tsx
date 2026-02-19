@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
 
 interface DeferredReason {
   reason: string;
@@ -9,22 +10,17 @@ interface DeferredReason {
 }
 
 export function DeferredReasonsPieChart() {
+  const { from, to, autoRefresh, refreshRange } = useTimeRangeStore();
   const [data, setData] = useState<DeferredReason[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchDeferredReasons();
-    const interval = setInterval(fetchDeferredReasons, 60000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchDeferredReasons = async () => {
+  const fetchDeferredReasons = useCallback(async () => {
     try {
-      const to = new Date();
-      const from = new Date(to.getTime() - 24 * 60 * 60 * 1000);
+      refreshRange();
+      const { from: freshFrom, to: freshTo } = useTimeRangeStore.getState();
 
       const response = await fetch(
-        `/api/v1/email/bounce-analysis?from=${from.toISOString()}&to=${to.toISOString()}`
+        `/api/v1/email/bounce-analysis?from=${freshFrom.toISOString()}&to=${freshTo.toISOString()}`
       );
       const result = await response.json();
 
@@ -41,17 +37,22 @@ export function DeferredReasonsPieChart() {
       }
     } catch (error) {
       console.error("Failed to fetch deferred reasons:", error);
-      // Mock data fallback
-      setData([
-        { reason: "Rate Limited", count: 1240, percentage: 42 },
-        { reason: "MX Unavailable", count: 890, percentage: 30 },
-        { reason: "Timeout", count: 520, percentage: 18 },
-        { reason: "Policy Block", count: 295, percentage: 10 },
-      ]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [refreshRange]);
+
+  useEffect(() => {
+    fetchDeferredReasons();
+    const interval = autoRefresh
+      ? setInterval(fetchDeferredReasons, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchDeferredReasons, autoRefresh]);
+
+  useEffect(() => {
+    fetchDeferredReasons();
+  }, [from, to, fetchDeferredReasons]);
 
   const option: EChartsOption = {
     tooltip: {

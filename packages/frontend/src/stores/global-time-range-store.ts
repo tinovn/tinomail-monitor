@@ -15,6 +15,8 @@ interface TimeRangeActions {
   setPreset: (preset: TimePreset) => void;
   setCustomRange: (from: Date, to: Date) => void;
   setAutoRefresh: (interval: AutoRefreshInterval) => void;
+  /** Re-compute from/to based on current preset and update store */
+  refreshRange: () => void;
 }
 
 const getPresetRange = (preset: TimePreset): { from: Date; to: Date } => {
@@ -53,6 +55,13 @@ export const useTimeRangeStore = create<TimeRangeState & TimeRangeActions>()(
 
     setAutoRefresh: (interval: AutoRefreshInterval) => {
       set({ autoRefresh: interval });
+    },
+
+    refreshRange: () => {
+      const { preset } = useTimeRangeStore.getState();
+      if (preset === "custom") return;
+      const range = getPresetRange(preset);
+      set({ ...range });
     },
   }),
 );

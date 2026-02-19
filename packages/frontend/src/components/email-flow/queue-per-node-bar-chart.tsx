@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import type { EChartsOption } from "echarts";
 import { EchartsBaseWrapper } from "@/components/charts/echarts-base-wrapper";
+import { useTimeRangeStore } from "@/stores/global-time-range-store";
+import { apiClient } from "@/lib/api-http-client";
 
 interface NodeQueue {
   node: string;
@@ -8,36 +10,39 @@ interface NodeQueue {
 }
 
 export function QueuePerNodeBarChart() {
+  const { autoRefresh } = useTimeRangeStore();
   const [data, setData] = useState<NodeQueue[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchQueuePerNode();
-    const interval = setInterval(fetchQueuePerNode, 10000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const fetchQueuePerNode = async () => {
+  const fetchQueuePerNode = useCallback(async () => {
     try {
-      // Mock data - replace with actual ZoneMTA API call
-      const mockData = [
-        { node: "mta-01", count: 1240 },
-        { node: "mta-02", count: 980 },
-        { node: "mta-03", count: 1560 },
-        { node: "mta-04", count: 720 },
-        { node: "mta-05", count: 1420 },
-        { node: "mta-06", count: 890 },
-        { node: "mta-07", count: 1100 },
-        { node: "mta-08", count: 650 },
-      ];
+      // Queue size is point-in-time from latest ZoneMTA metrics
+      const result = await apiClient.get<Array<{ nodeId: string; queueSize: number }>>(
+        "/zonemta/queue-per-node"
+      );
 
-      setData(mockData.sort((a, b) => b.count - a.count));
-    } catch (error) {
-      console.error("Failed to fetch queue per node:", error);
+      if (result && result.length > 0) {
+        setData(
+          result
+            .map((r) => ({ node: r.nodeId, count: r.queueSize }))
+            .sort((a, b) => b.count - a.count)
+        );
+      }
+    } catch {
+      // API may not exist yet — show empty
+      setData([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchQueuePerNode();
+    const interval = autoRefresh
+      ? setInterval(fetchQueuePerNode, autoRefresh * 1000)
+      : undefined;
+    return () => { if (interval) clearInterval(interval); };
+  }, [fetchQueuePerNode, autoRefresh]);
 
   const option: EChartsOption = {
     tooltip: {
